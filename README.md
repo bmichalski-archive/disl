@@ -13,6 +13,7 @@ It allows to parallelize in cases such as:
 ```js
 var container = new Container()
 ```
+
 #### Service
 ##### Set
 ```js
@@ -24,6 +25,7 @@ var serviceInstance = {
 
 container.set('app.foo', serviceInstance)
 ```
+
 ##### Get
 ```js
 container.get('app.foo').then(function (services) {
@@ -31,6 +33,7 @@ container.get('app.foo').then(function (services) {
   services[0].doSomething()
 }) 
 ```
+
 ###### Get multiple services
 ```js
 container.get('app.foo', 'app.bar').then(function (services) {
@@ -39,26 +42,31 @@ container.get('app.foo', 'app.bar').then(function (services) {
   services[1].doSomethingElse()
 }) 
 ```
+
 ##### Check if container has service instance
 ```js
 var hasInstance = container.hasInstance('app.bar')
 ```
 hasInstance is set to true if container has service instance, false otherwise
+
 #### Parameters
 ##### Set
 ```js
 container.setParameter('foo_parameter', 42)
 ```
+
 ##### Get
 ```js
 var parameter = container.getParameter('foo_parameter')
 ```
 parameter is set to 42
+
 ##### Check if container has parameter
 ```js
 var hasParameter = container.hasParameter('foo_parameter')
 ```
 hasParameter is set to true if parameter has been defined, false otherwise
+
 #### Service definition
 ##### Create definition
 ###### Using a factory method
@@ -73,11 +81,13 @@ var definition = new FactoryDefinition(
   }
 )
 ```
+
 ###### Using a class constructor
 ```js
 var definition = new ClassConstructorDefinition('barClass')
 ```
 For this definition to work, the service container would need to know where to look for the class constructor.
+
 ###### Register a class constructor locator
 ```js
 var BarClass = function () {}
@@ -94,10 +104,12 @@ container.registerClassConstructorLocator(function (classConstructorIdentifier) 
   }
 })
 ```
+
 ##### Set definition
 ```js
 container.setDefinition('app.bar', definition)
 ```
+
 ##### Get definition
 Example:
 ```js
@@ -106,6 +118,7 @@ container.setDefinition('app.bar', definition)
 var definition2 = container.getDefinition('app.bar', definition)
 ```
 Here, definition2 === definition
+
 ##### Get service from definition
 Similar to #set then #get except that service instantiation is done automatically when calling #get after #setDefinition:
 ```js
@@ -114,11 +127,13 @@ container.get('app.bar').then(function (services) {
   services[0].doSomething()
 })
 ```
+
 ##### Check if container has service definition
 ```js
 var hasDefinition = container.hasDefinition('app.bar')
 ```
 hasDefinition is set to true if container has service definition, false otherwise
+
 #### Other
 ##### Check if container has service
 That is either if container has service instance or it is able to instantiate it:
@@ -128,6 +143,7 @@ var has = container.has('app.bar')
 has is set to:
 * true if container either has service definition or has service instance
 * false otherwise
+
 ### More examples
 #### Integration with angular 1.x
 See [test file](https://github.com/bmichalski-js/disl/blob/master/test/integration/angular-integration.spec.js).
