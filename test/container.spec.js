@@ -28,7 +28,13 @@ describe('Container', function () {
 
     serviceContainer.set('foo', serviceInstance)
 
-    return expect(serviceContainer.get('foo')).to.eventually.deep.equal([serviceInstance])
+    return expect(serviceContainer.get('foo'))
+      .to.eventually
+      .be.fulfilled
+      .then(function (services) {
+        expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+        expect(services[0]).to.be.equal(serviceInstance)
+      })
   }
 
   describe('#get', function () {
@@ -45,7 +51,13 @@ describe('Container', function () {
 
           serviceContainer.setDefinition('foo', serviceDefinition)
 
-          return expect(serviceContainer.get('foo')).to.eventually.deep.equal([serviceInstance])
+          return expect(serviceContainer.get('foo'))
+            .to.eventually
+            .be.fulfilled
+            .then(function (services) {
+              expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+              expect(services[0]).to.be.equal(serviceInstance)
+            })
         })
 
         context('and its factory method returns nothing', function () {
@@ -366,7 +378,11 @@ describe('Container', function () {
 
           return expect(serviceContainer.get('foo'))
             .to.eventually
-            .deep.equal([fooInstance])
+            .be.fulfilled
+            .then(function (services) {
+              expect(services).to.be.instanceOf(Array).and.be.lengthOf(1)
+              expect(services[0]).to.be.equal(fooInstance)
+            })
         })
       })
 
@@ -407,7 +423,13 @@ describe('Container', function () {
 
         serviceContainer.set('foo', serviceInstance2)
 
-        return expect(serviceContainer.get('foo')).to.eventually.deep.equal([serviceInstance2])
+        return expect(serviceContainer.get('foo'))
+          .to.eventually
+          .be.fulfilled
+          .then(function (services) {
+            expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+            expect(services[0]).to.be.equal(serviceInstance2)
+          })
       })
     })
   })

@@ -10,8 +10,8 @@ describe('Integration with angular', function () {
   function makeTest(addServices, makeExpect) {
     return function () {
       //Declaration of angular modules and services
-      const fooInstance = { isFoo: true }
-      const barInstance = { isBar: true }
+      const fooInstance = {}
+      const barInstance = {}
 
       const fooModule = angular.module('foo', [])
 
@@ -24,8 +24,8 @@ describe('Integration with angular', function () {
       const container = new Container()
 
       exposeAngularServicesModule.run([ '$injector', function ($injector) {
-        container.registerInstanceLocator((identifier) => {
-          return new Promise((resolve) => {
+        container.registerInstanceLocator(function (identifier) {
+          return new Promise(function (resolve) {
             /**
              * Use $injector to inject / instantiate services on-demand
              */
@@ -58,10 +58,17 @@ describe('Integration with angular', function () {
         return Promise.all([
           expect(container.get('foo'))
             .to.eventually
-            .deep.equal([fooInstance]),
+            .be.fulfilled
+            .then(function (services) {
+              expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+              expect(services[0]).to.be.equal(fooInstance)
+            }),
           expect(container.get('bar'))
-            .to.eventually
-            .deep.equal([barInstance])
+            .be.fulfilled
+            .then(function (services) {
+              expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+              expect(services[0]).to.be.equal(barInstance)
+            })
         ])
       }
     )
@@ -73,8 +80,8 @@ describe('Integration with angular', function () {
     const exposeAngularServicesModule = angular.module('exposeAngularServices', [])
 
     exposeAngularServicesModule.run([ '$injector', function ($injector) {
-      container.registerInstanceLocator((identifier) => {
-        return new Promise((resolve) => {
+      container.registerInstanceLocator(function (identifier) {
+        return new Promise(function (resolve) {
           if ($injector.has(identifier)) {
             resolve($injector.get(identifier))
           } else {
