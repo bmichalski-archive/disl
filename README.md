@@ -137,7 +137,6 @@ See [test file](https://github.com/bmichalski-js/disl/blob/master/test/integrati
 ### TODO
 * Improve error handling
   * with specific error types
-* in More examples, add link to test files
 * add a way to describe services using JSON
 
 ### Motivations
