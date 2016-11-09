@@ -1,9 +1,12 @@
 "use strict"
 
 if (typeof require !== 'undefined') {
-  var { expect } = require('chai')
+  var expect = require('chai').expect
 
-  var { ClassConstructorDefinition, Reference } = require('./di')
+  var di = require('./di')
+
+  var ClassConstructorDefinition = di.ClassConstructorDefinition
+  var Reference = di.Reference
 }
 
 describe('ClassConstructorDefinition', function () {

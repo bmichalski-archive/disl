@@ -23,13 +23,13 @@ describe('Integration with requirejs', function () {
 
     define('foo', function () { return fooInstance })
 
-    container.registerInstanceLocator((identifier) => {
-      return new Promise((resolve) => {
+    container.registerInstanceLocator(function (identifier) {
+      return new Promise(function (resolve) {
         require(
           [
             identifier
           ],
-          (service) => {
+          function (service) {
             resolve(service)
           }
         )
@@ -38,25 +38,29 @@ describe('Integration with requirejs', function () {
 
     return expect(container.get('foo'))
       .to.eventually
-      .be.equal(fooInstance)
+      .be.fulfilled
+      .then(function (services) {
+        expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+        expect(services[0]).to.be.equal(fooInstance)
+      })
   })
 
   it('should throw an error if requirejs service does not exist', function () {
     const container = new Container()
 
     container.registerInstanceLocator(
-      (identifier) => {
+      function (identifier) {
         return new Promise(
-          (resolve, reject) => {
+          function (resolve, reject) {
             require(
               [
                 identifier
               ],
-              (service) => {
+              function (service) {
                 resolve(service)
               },
               //Don't forget to add error handing
-              (err) => {
+              function (err) {
                 if (err.requireModules) {
                   resolve()
                 } else {
@@ -78,30 +82,43 @@ describe('Integration with requirejs', function () {
     it('should return the same instance', function () {
       const container = new Container()
 
-      const fooInstance = {}
+      const Foo = function () {}
 
-      define('foo', function () { return fooInstance })
+      define('foo', function () { return new Foo() })
 
-      container.registerInstanceLocator((identifier) => {
-        return new Promise((resolve) => {
+      container.registerInstanceLocator(function (identifier) {
+        return new Promise(function (resolve) {
           require(
             [
               identifier
             ],
-            (service) => {
+            function (service) {
               resolve(service)
             }
           )
         })
       })
 
+      function assertServices(services) {
+        expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+        expect(services[0]).to.be.instanceOf(Foo)
+      }
+
       return expect(container.get('foo'))
         .to.eventually
-        .be.equal(fooInstance)
-        .then(() => {
+        .be.fulfilled
+        .then(function (services) {
+          assertServices(services)
+
+          const aInstance = services[0]
+
           return expect(container.get('foo'))
-            .to.eventually
-            .be.equal(fooInstance)
+            .be.fulfilled
+            .then(function (services) {
+              assertServices(services)
+
+              expect(services[0]).to.be.equal(aInstance)
+            })
         })
     })
   })
