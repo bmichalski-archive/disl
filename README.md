@@ -129,9 +129,10 @@ has is set to:
 * true if container either has service definition or has service instance
 * false otherwise
 ### More examples
-See test files
 #### Integration with angular 1.x
+See [test file](https://github.com/bmichalski-js/disl/blob/master/test/integration/angular-integration.spec.js).
 #### Integration with requirejs
+See [test file](https://github.com/bmichalski-js/disl/blob/master/test/integration/requirejs-integration.spec.js).
 
 ### TODO
 * Improve error handling
