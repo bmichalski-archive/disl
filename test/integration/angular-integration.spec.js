@@ -58,10 +58,10 @@ describe('Integration with angular', function () {
         return Promise.all([
           expect(container.get('foo'))
             .to.eventually
-            .be.equal(fooInstance),
+            .deep.equal([fooInstance]),
           expect(container.get('bar'))
             .to.eventually
-            .be.equal(barInstance)
+            .deep.equal([barInstance])
         ])
       }
     )

@@ -26,10 +26,18 @@ container.set('app.foo', serviceInstance)
 ```
 ##### Get
 ```js
-container.get('app.foo', serviceInstance).then(function (serviceInstance) {
+container.get('app.foo').then(function (services) {
   //Then do something with the retrieved service
-  serviceInstance.doSomething()
-})
+  services[0].doSomething()
+}) 
+```
+###### Get multiple services
+```js
+container.get('app.foo', 'app.bar').then(function (services) {
+  //Then do something with the retrieved services
+  services[0].doSomething()
+  services[1].doSomethingElse()
+}) 
 ```
 ##### Check if container has service instance
 ```js
@@ -101,9 +109,9 @@ Here, definition2 === definition
 ##### Get service from definition
 Similar to #set then #get except that service instantiation is done automatically when calling #get after #setDefinition:
 ```js
-container.get('app.bar').then(function (barService) {
+container.get('app.bar').then(function (services) {
   //Then do something with the retrieved service
-  barService.doSomething()
+  services[0].doSomething()
 })
 ```
 ##### Check if container has service definition

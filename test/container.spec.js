@@ -29,7 +29,7 @@ describe('Container', function () {
 
       serviceContainer.set('foo', serviceInstance)
 
-      return expect(serviceContainer.get('foo')).to.eventually.equal(serviceInstance)
+      return expect(serviceContainer.get('foo')).to.eventually.deep.equal([serviceInstance])
     })
 
     context('there is already one service instance with the name', function () {
@@ -44,16 +44,14 @@ describe('Container', function () {
 
         serviceContainer.set('foo', serviceInstance2)
 
-        return expect(serviceContainer.get('foo')).to.eventually.equal(serviceInstance2)
+        return expect(serviceContainer.get('foo')).to.eventually.deep.equal([serviceInstance2])
       })
     })
   })
 
   describe('#getDefinition', function () {
     it('should return the service definition', function () {
-      const serviceDefinition = new FactoryDefinition(function () {
-        return
-      })
+      const serviceDefinition = new FactoryDefinition(function () {})
 
       serviceContainer.setDefinition('foo', serviceDefinition)
 
@@ -72,7 +70,7 @@ describe('Container', function () {
 
         serviceContainer.setDefinition('foo', serviceDefinition)
 
-        return expect(serviceContainer.get('foo')).to.eventually.equal(serviceInstance)
+        return expect(serviceContainer.get('foo')).to.eventually.deep.equal([serviceInstance])
       })
 
       context('service definition returns nothing', function () {
@@ -105,7 +103,12 @@ describe('Container', function () {
 
         serviceContainer.setDefinition('foo', serviceDefinition)
 
-        return expect(serviceContainer.get('foo')).to.eventually.be.instanceOf(Foo)
+        return expect(serviceContainer.get('foo')).to.be.fulfilled.then((services) => {
+          expect(services)
+            .to.be.instanceOf(Array)
+            .and.be.lengthOf(1)
+          expect(services[0]).to.be.instanceOf(Foo)
+        })
       })
     })
 
@@ -119,9 +122,9 @@ describe('Container', function () {
 
         return expect(serviceContainer.get('foo'))
           .to.eventually
-          .to.be.equal(serviceInstance)
+          .deep.equal([serviceInstance])
           .then(() => {
-            return expect(serviceContainer.get('foo')).to.eventually.be.equal(serviceInstance)
+            return expect(serviceContainer.get('foo')).to.eventually.deep.equal([serviceInstance])
           })
       })
     })
@@ -150,7 +153,7 @@ describe('Container', function () {
 
         serviceContainer.setDefinition('foo', serviceDefinition)
 
-        return expect(serviceContainer.get('foo')).to.eventually.be.equal(serviceInstance)
+        return expect(serviceContainer.get('foo')).to.eventually.deep.equal([serviceInstance])
       })
 
       context('there is a circular dependency', function () {
@@ -293,6 +296,91 @@ describe('Container', function () {
   })
 
   describe('#get', function () {
+    context('a service definitions have been set that instantiate an object', function () {
+      context('when retrieving the same service twice', function () {
+        context('with one function call', function () {
+          it('should return the same object instance', function () {
+            const Foo = function () {}
+
+            serviceContainer.setDefinition('foo', new FactoryDefinition(() => { return new Foo() }))
+
+            return expect(serviceContainer.get('foo', 'foo'))
+              .to.eventually
+              .be.fulfilled
+              .then((services) => {
+                expect(services)
+                  .to.be.instanceOf(Array)
+                  .and.be.lengthOf(2)
+                expect(services[0]).to.be.instanceOf(Foo)
+                expect(services[0]).to.equal(services[1])
+              })
+          })
+        })
+
+        context('with two successive function calls', function () {
+          it('should return the same object instance', function () {
+            const Foo = function () {}
+
+            serviceContainer.setDefinition('foo', new FactoryDefinition(() => { return new Foo() }))
+
+            function expectServices(services) {
+              expect(services)
+                .to.be.instanceOf(Array)
+                .and.be.lengthOf(1)
+              expect(services[0]).to.be.instanceOf(Foo)
+            }
+
+            return expect(serviceContainer.get('foo'))
+              .to.eventually
+              .be.fulfilled
+              .then((services) => {
+                expectServices(services)
+
+                const a = services[0]
+
+                return expect(serviceContainer.get('foo'))
+                  .to.eventually
+                  .be.fulfilled
+                  .then((services) => {
+                    expectServices(services)
+
+                    expect(services[0]).to.be.equal(a)
+                  })
+              })
+          })
+        })
+      })
+    })
+
+    context('multiple services have been set', function () {
+      it('should return multiple service instances', function () {
+        const fooInstance = { isFoo: true }
+        const barInstance = { isBar: true }
+
+        serviceContainer
+          .set('foo', fooInstance)
+          .set('bar', barInstance)
+
+        return expect(serviceContainer.get('foo', 'bar'))
+          .to.eventually
+          .deep.equal([fooInstance, barInstance])
+      })
+    })
+
+    context('multiple services definitions have been set', function () {
+      it('should return multiple service instances', function () {
+        const fooInstance = {}
+        const barInstance = {}
+
+        serviceContainer.setDefinition('foo', new FactoryDefinition(() => { return fooInstance }))
+        serviceContainer.setDefinition('bar', new FactoryDefinition(() => { return barInstance }))
+
+        return expect(serviceContainer.get('foo', 'bar'))
+          .to.eventually
+          .deep.equal([fooInstance, barInstance])
+      })
+    })
+
     context('there is no service definition and no service instance defined for given service name', function () {
       it('should throw an Error', function () {
         return expect(serviceContainer.get('foo'))
@@ -313,7 +401,7 @@ describe('Container', function () {
 
           return expect(serviceContainer.get('foo'))
             .to.eventually
-            .be.equal(fooInstance)
+            .deep.equal([fooInstance])
         })
       })
     })

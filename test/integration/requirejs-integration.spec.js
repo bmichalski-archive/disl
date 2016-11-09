@@ -38,7 +38,7 @@ describe('Integration with requirejs', function () {
 
     return expect(container.get('foo'))
       .to.eventually
-      .be.equal(fooInstance)
+      .deep.equal([fooInstance])
   })
 
   it('should throw an error if requirejs service does not exist', function () {
@@ -97,11 +97,11 @@ describe('Integration with requirejs', function () {
 
       return expect(container.get('foo'))
         .to.eventually
-        .be.equal(fooInstance)
+        .deep.equal([fooInstance])
         .then(() => {
           return expect(container.get('foo'))
             .to.eventually
-            .be.equal(fooInstance)
+            .deep.equal([fooInstance])
         })
     })
   })

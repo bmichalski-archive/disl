@@ -35,7 +35,7 @@ class Container {
   /**
    * Gets service associated with identifier
    *
-   * @param {string} identifier
+   * @param {...string} identifiers
    *
    * @promise
    * @resolve {Object|Function} service identified by identifier
@@ -44,8 +44,16 @@ class Container {
    *
    * @public
    */
-  get(identifier: string): Promise<Object|Function> {
-    return this._doGetService(identifier, { obj: {}, arr: [] })
+  get(...identifiers: Array<string>): Promise<Object|Function> {
+    const promises = []
+
+    identifiers.forEach((identifier) => {
+      promises.push(
+        this._doGetService(identifier, { obj: {}, arr: [] })
+      )
+    })
+
+    return Promise.all(promises)
   }
 
   /**
@@ -384,7 +392,7 @@ class Container {
    *
    * @private
    */
-  _createMissingServiceDefinitionAndInstanceForIdentifierError(identifier: string): Error {
+  static _createMissingServiceDefinitionAndInstanceForIdentifierError(identifier: string): Error {
     return new Error('Missing service definition and instance for identifier "' + identifier + '"')
   }
 
@@ -422,7 +430,7 @@ class Container {
           return Promise.resolve(result).then((instance) => {
             return new Promise((resolve, reject) => {
               if (undefined === instance) {
-                reject(this._createMissingServiceDefinitionAndInstanceForIdentifierError(identifier))
+                reject(Container._createMissingServiceDefinitionAndInstanceForIdentifierError(identifier))
               } else {
                 resolve(instance)
               }
@@ -430,7 +438,7 @@ class Container {
           })
         }
 
-        return Promise.reject(this._createMissingServiceDefinitionAndInstanceForIdentifierError(identifier))
+        return Promise.reject(Container._createMissingServiceDefinitionAndInstanceForIdentifierError(identifier))
       }
 
       loading.obj[identifier] = true
