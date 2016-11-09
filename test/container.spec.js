@@ -211,22 +211,24 @@ describe('Container', function () {
             return expect(serviceContainer.get('foo'))
               .to.eventually
               .be.instanceOf(Error)
-              .and.be.rejectedWith(/^Circular dependency detected foo => foo$/)
+              .and.be.rejectedWith(/^Circular dependency found: foo <- foo$/)
           })
         })
 
         context('via another service', function () {
           it('should handle the situation by throwing an Error', function () {
             const fooServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('bar') ])
-            const barServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('foo') ])
+            const barServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('qux') ])
+            const quxServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('foo') ])
 
             serviceContainer.setDefinition('foo', fooServiceDefinition)
             serviceContainer.setDefinition('bar', barServiceDefinition)
+            serviceContainer.setDefinition('qux', quxServiceDefinition)
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
               .be.instanceOf(Error)
-              .and.be.rejectedWith(/^Circular dependency detected foo => bar => foo$/)
+              .and.be.rejectedWith(/^Circular dependency found: foo <- qux <- bar <- foo$/)
           })
         })
       })
@@ -295,7 +297,7 @@ describe('Container', function () {
             return expect(serviceContainer.get('foo'))
               .to.eventually
               .be.instanceOf(Error)
-              .and.be.rejectedWith(/^Circular dependency detected foo => foo$/)
+              .and.be.rejectedWith(/^Circular dependency found: foo <- foo$/)
           })
         })
 
@@ -315,7 +317,7 @@ describe('Container', function () {
             return expect(serviceContainer.get('foo'))
               .to.eventually
               .be.instanceOf(Error)
-              .and.be.rejectedWith(/^Circular dependency detected foo => bar => foo$/)
+              .and.be.rejectedWith(/^Circular dependency found: foo <- bar <- foo$/)
           })
         })
       })

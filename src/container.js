@@ -412,10 +412,14 @@ class Container {
    */
   _doGetService(identifier: string, loading: LoadingObject): Promise {
     if (undefined !== loading.obj[identifier]) {
-      const path = loading.arr.concat([ identifier ]).join(' => ')
+      const path = []
+        .concat(loading.arr)
+        .concat([ identifier ])
+        .reverse()
+        .join(' <- ')
 
       return Promise.reject(
-        new Error('Circular dependency detected ' + path + '')
+        new Error('Circular dependency found: ' + path + '')
       )
     }
 
