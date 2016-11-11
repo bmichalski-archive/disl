@@ -465,11 +465,15 @@ class Container {
       loading.obj[identifier] = true
       loading.arr.push(identifier)
 
-      const promise = this._instantiate(identifier, this.getDefinition(identifier), loading)
+      try {
+        const promise = this._instantiate(identifier, this.getDefinition(identifier), loading)
 
-      this._serviceDefinitionsAlreadyUsedToInstantiateByIdentifier[identifier] = true
+        this._serviceDefinitionsAlreadyUsedToInstantiateByIdentifier[identifier] = true
 
-      this._servicesByIdentifier[identifier] = promise
+        this._servicesByIdentifier[identifier] = promise
+      } catch(e) {
+        return Promise.reject(e)
+      }
     }
 
     return Promise.resolve(this._servicesByIdentifier[identifier])

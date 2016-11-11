@@ -4,8 +4,10 @@ if (typeof require !== 'undefined') {
   const origRequire = require
 
   var expect = origRequire('chai').expect
-
-  var { Container } = require('../di')
+  var {
+    Container,
+    UndefinedServiceDefinitionAndInstanceError
+  } = require('../di')
 
   var require = origRequire('requirejs')
   var define = require.define
