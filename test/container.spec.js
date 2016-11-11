@@ -61,15 +61,15 @@ describe('Container', function () {
         })
 
         context('and its factory method returns nothing', function () {
-          it('should throw an Error', function () {
+          it('should throw an FactoryMethodReturnsNothingError', function () {
             const definition = new FactoryDefinition(function () {})
 
             serviceContainer.setDefinition('foo', definition)
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.an.instanceOf(Error)
-              .and.be.rejectedWith(/^Expecting factory method to return a service$/)
+              .be.an.instanceOf(FactoryMethodReturnsNothingError)
+              .and.be.rejectedWith(/^Factory method for identifier "foo" returns nothing$/)
           })
         })
 
@@ -152,6 +152,31 @@ describe('Container', function () {
               .and.be.lengthOf(1)
             expect(services[0]).to.be.instanceOf(Foo)
           })
+        })
+
+        context('but no required class constructor is found', function () {
+          it('should throw an CannotLocateServiceClassConstructorError', function () {
+            const serviceDefinition = new ClassConstructorDefinition('Foo')
+
+            serviceContainer.setDefinition('foo', serviceDefinition)
+
+            return expect(serviceContainer.get('foo'))
+              .to.eventually
+              .be.rejectedWith(
+                CannotLocateServiceClassConstructorError,
+                /^Cannot locate service class constructor for class "Foo"$/
+              )
+          })
+        })
+      })
+
+      context('and its not an instance of a supported class', function () {
+        it('should throw an Error', function () {
+          serviceContainer._serviceDefinitionsByIdentifier.foo = {}
+
+          expect(function () {
+            serviceContainer.get('foo')
+          }).to.throw(TypeError, /^Function return value violates contract.\n\nExpected:\nDefinition\n\nGot:\nObject$/)
         })
       })
     })
@@ -365,7 +390,7 @@ describe('Container', function () {
         return expect(serviceContainer.get('foo'))
           .to.eventually
           .be.instanceOf(Error)
-          .and.be.rejectedWith(/^Missing service definition and instance for identifier "foo"$/)
+          .and.be.rejectedWith(/^Undefined service definition and instance for identifier "foo"$/)
       })
 
       context('but there is an instance locator returning something', function () {
@@ -401,7 +426,7 @@ describe('Container', function () {
           return expect(serviceContainer.get('bar'))
             .to.eventually
             .be.instanceOf(Error)
-            .and.be.rejectedWith(/^Missing service definition and instance for identifier "bar"$/)
+            .and.be.rejectedWith(/^Undefined service definition and instance for identifier "bar"$/)
         })
       })
     })
@@ -446,6 +471,12 @@ describe('Container', function () {
 
   describe('#getDefinition', function () {
     it('should get the service definition associated with identifier', simpleGetDefinitionSetDefinitionTest)
+
+    it('should throw an error if service definition is not set', function () {
+      expect(function () {
+        serviceContainer.getDefinition('foo')
+      }).to.throw(Error, /Undefined service definition for identifier "foo"/)
+    })
   })
 
   describe('#setDefinition', function () {
@@ -482,7 +513,7 @@ describe('Container', function () {
     it('should throw an error if parameter does not exist', function () {
       expect(function () {
         serviceContainer.getParameter('foo')
-      }).to.throw(Error, /^Undefined parameter "foo"$/)
+      }).to.throw(Error, /^Undefined parameter for identifier "foo"$/)
     })
   })
 

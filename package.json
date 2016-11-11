@@ -20,6 +20,9 @@
     "karma-dev-watch": "./node_modules/.bin/karma start karma.conf.dev.js",
     "test": "npm run-script mocha-all && npm run-script karma-all"
   },
+  "dependencies": {
+    "verror": "^1.8.1"
+  },
   "devDependencies": {
     "angular": "^1.5.8",
     "babel-core": "^6.18.2",

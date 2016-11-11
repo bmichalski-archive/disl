@@ -5,6 +5,18 @@ import Reference from './reference'
 import Parameter from './parameter'
 import MethodCall from './method-call'
 
+import {
+  CircularDependencyError,
+  UnsupportedArgumentTypeError,
+  UndefinedServiceDefinitionAndInstanceError,
+  UndefinedServiceDefinitionError,
+  ServiceDefinitionAlreadyUsedError,
+  UndefinedParameterError,
+  FactoryMethodReturnsNothingError,
+  MethodDoesNotExistError,
+  CannotLocateServiceClassConstructorError
+} from './errors'
+
 import type {InjectableArguments} from './types/injectable-arguments'
 type scalar = (string|number|boolean|null)
 type LoadingObject = {
@@ -38,13 +50,13 @@ class Container {
    * @param {...string} identifiers
    *
    * @promise
-   * @resolve {Object|Function} service identified by identifier
-   * @reject {Error} in case the service is undefined
-   * @reject {Error} in case of a circular dependency
+   * @resolve {Array<Object|Function>} a service
+   * @reject {UndefinedServiceDefinitionAndInstanceError} in case the service is undefined
+   * @reject {CircularDependencyError} in case of a circular dependency
    *
    * @public
    */
-  get(...identifiers: Array<string>): Promise<Object|Function> {
+  get(...identifiers: Array<string>): Promise<Array<Object|Function>> {
     const promises = []
 
     identifiers.forEach((identifier) => {
@@ -120,7 +132,7 @@ class Container {
    *
    * @returns {Definition}
    *
-   * @throws {Error} if there is no service definition for given identifier
+   * @throws {UndefinedServiceDefinitionError} if there is no service definition for given identifier
    *
    * @public
    */
@@ -128,7 +140,7 @@ class Container {
     const definition = this._serviceDefinitionsByIdentifier[identifier]
 
     if (undefined === definition) {
-      throw new Error('Missing service definition for identifier "' + identifier + '"')
+      throw UndefinedServiceDefinitionError.createError(identifier)
     }
 
     return definition
@@ -142,15 +154,13 @@ class Container {
    *
    * @returns {Container} current Container instance
    *
+   * @throws {ServiceDefinitionAlreadyUsedError} if the service definition has already been used to instantiate a service
+   *
    * @public
    */
   setDefinition(identifier: string, definition: Definition): Container {
     if (this._serviceDefinitionsAlreadyUsedToInstantiateByIdentifier[identifier]) {
-      throw new Error(
-        'Service definition for "'
-          + identifier
-          + '" has already been used to instantiate a service, refusing to modify it'
-      )
+      throw ServiceDefinitionAlreadyUsedError.createError(identifier)
     }
 
     this._serviceDefinitionsAlreadyUsedToInstantiateByIdentifier[identifier] = false
@@ -166,11 +176,13 @@ class Container {
    *
    * @returns {scalar} parameter value
    *
+   * @throws {UndefinedParameterError} if there is no parameter for given identifier
+   *
    * @public
    */
   getParameter(identifier: string): scalar {
     if (undefined === this._parametersByIdentifier[identifier]) {
-      throw new Error('Undefined parameter "' + identifier + '"')
+      throw UndefinedParameterError.createError(identifier)
     }
 
     return this._parametersByIdentifier[identifier]
@@ -234,19 +246,19 @@ class Container {
   /**
    * Resolves service definition arguments, then uses them to instantiate the service.
    *
+   * @param {string} identifier
    * @param {Definition} definition
    * @param {LoadingObject} loading an object that keeps track of service instantiations,
    * used to prevent circular dependency related infinite loops
    *
    * @promise
    * @resolve {Object}
-   * @reject {Error} in case a factory method returns nothing
-   * @reject {Error} in case a method call calls a method that does not exist
-   * @reject {Error} in case the service definition
+   * @reject {FactoryMethodReturnsNothingError} in case a factory method returns nothing
+   * @reject {MethodDoesNotExistError} in case a method call calls a method that does not exist
    *
    * @private
    */
-  _instantiate(definition: Definition, loading: LoadingObject): Promise<Object> {
+  _instantiate(identifier: string, definition: Definition, loading: LoadingObject): Promise<Object> {
     return this
       ._resolveArgs(definition.args, loading)
       .then((args: Array): Promise => {
@@ -260,37 +272,54 @@ class Container {
           instance = definition.factory.apply(undefined, args)
 
           if (undefined === instance) {
-            throw new Error('Expecting factory method to return a service')
+            return Promise.reject(
+              FactoryMethodReturnsNothingError.createError(identifier)
+            )
           }
-        } else {
-          //Theoretically, can't happen with current Definition implementation.
-          throw new Error('Unsupported')
         }
 
-        const methodCallsPromises = []
+        return new Promise((resolve, reject) => {
+          const methodCallsPromises = []
 
-        definition.methodCalls.forEach((methodCall: MethodCall): void => {
-          const methodName = methodCall.name
-          const method = instance[methodName]
+          let i, methodCall
 
-          if (undefined === method) {
-            throw new Error('Method "' + methodName + '" does not exist')
+          const callMethod = (methodToCall: Function) => {
+            methodCallsPromises.push(
+              this
+                ._resolveArgs(methodCall.args, loading)
+                .then((args: Array): ?(Promise|mixed) => {
+                  return methodToCall.apply(instance, args)
+                })
+            )
           }
 
-          methodCallsPromises.push(
-            this
-              ._resolveArgs(methodCall.args, loading)
-              .then((args: Array): ?(Promise|mixed) => {
-                return method.apply(instance, args)
+          function getMethodCall(i): MethodCall {
+            return definition.methodCalls[i]
+          }
+
+          for (i in definition.methodCalls) {
+            if (definition.methodCalls.hasOwnProperty(i)) {
+              methodCall = getMethodCall(i)
+
+              const methodName = methodCall.name
+              const methodToCall = instance[methodName]
+
+              if (undefined === methodToCall) {
+                return reject(MethodDoesNotExistError.createError(methodName))
+              }
+
+              callMethod(methodToCall)
+            }
+          }
+
+          return resolve(
+            Promise
+              .all(methodCallsPromises)
+              .then((): Object => {
+                return instance
               })
           )
         })
-
-        return Promise
-          .all(methodCallsPromises)
-          .then((): Object => {
-            return instance
-          })
       })
   }
 
@@ -301,29 +330,24 @@ class Container {
    *
    * @returns {Function} a service class constructor
    *
-   * @throws {Error} if the class constructor could not be found
+   * @throws {CannotLocateServiceClassConstructorError} if the service class constructor cannot be found
    *
    * @private
    */
   _locateServiceClassConstructor(identifier: string): Function {
-    let i
-    let classConstructor
+    let i, classConstructor
 
     for (i in this._classConstructorLocators) {
       if (this._classConstructorLocators.hasOwnProperty(i)) {
         classConstructor = this._classConstructorLocators[i](identifier)
 
         if (undefined !== classConstructor) {
-          break;
+          return classConstructor
         }
       }
     }
 
-    if (undefined === classConstructor) {
-      throw new Error('Could not locate service class constructor for identifier "' + identifier + '"')
-    }
-
-    return classConstructor
+    throw CannotLocateServiceClassConstructorError.createError(identifier)
   }
 
 
@@ -343,12 +367,10 @@ class Container {
         instance = this._instanceLocators[i](identifier)
 
         if (undefined !== instance) {
-          break;
+          return instance
         }
       }
     }
-
-    return instance
   }
 
   /**
@@ -358,42 +380,41 @@ class Container {
    * @param {LoadingObject} loading an object that keeps track of service instantiations,
    * used to prevent circular dependency related infinite loops
    *
-   * @promise
+   * @promise {Array<any>} arguments of any type
+   * @reject {UnsupportedArgumentTypeError}
    *
    * @private
    */
   _resolveArgs(args: InjectableArguments, loading: LoadingObject): Promise {
     const promises = []
 
-    args.forEach((arg) => {
-      if (arg instanceof Reference) {
-        const id = arg.id
+    return new Promise((resolve, reject) => {
+      let i, arg
 
-        promises.push(
-          this._doGetService(id, Container._deepCopyLoading(loading))
-        )
-      } else if (arg instanceof Parameter) {
-        promises.push(
-          this.getParameter(arg.id)
-        )
-      } else {
-        throw new Error('Unsupported arg of type "' + (typeof arg) + '"');
+      for (i in args) {
+        if (args.hasOwnProperty(i)) {
+          arg = args[i]
+
+          if (arg instanceof Reference) {
+            const id = arg.id
+
+            promises.push(
+              this._doGetService(id, Container._deepCopyLoading(loading))
+            )
+          } else if (arg instanceof Parameter) {
+            promises.push(
+              this.getParameter(arg.id)
+            )
+          } else {
+            return reject(UnsupportedArgumentTypeError.createError(arg))
+          }
+        }
       }
+
+      return resolve(
+        Promise.all(promises)
+      )
     })
-
-    return Promise.all(promises)
-  }
-
-
-  /**
-   * @param {string} identifier
-   *
-   * @returns {Error}
-   *
-   * @private
-   */
-  static _createMissingServiceDefinitionAndInstanceForIdentifierError(identifier: string): Error {
-    return new Error('Missing service definition and instance for identifier "' + identifier + '"')
   }
 
   /**
@@ -404,22 +425,20 @@ class Container {
    * used to prevent circular dependency related infinite loops
    *
    * @promise
-   * @resolve {*} a service that could be of any type
-   * @reject {Error} in case the service is undefined
-   * @reject {Error} in case of a circular dependency
+   * @resolve {Object|Function} a service
+   * @reject {CircularDependencyError} in case of a circular dependency
+   * @reject {UndefinedServiceDefinitionAndInstanceError} in case neither an instance nor a definition is found
    *
    * @private
    */
   _doGetService(identifier: string, loading: LoadingObject): Promise {
     if (undefined !== loading.obj[identifier]) {
-      const path = []
+      const services = []
         .concat(loading.arr)
         .concat([ identifier ])
-        .reverse()
-        .join(' <- ')
 
       return Promise.reject(
-        new Error('Circular dependency found: ' + path + '')
+        CircularDependencyError.createError(services)
       )
     }
 
@@ -432,23 +451,21 @@ class Container {
            * In case locate instance returns a promise, resolve promise
            */
           return Promise.resolve(result).then((instance) => {
-            return new Promise((resolve, reject) => {
-              if (undefined === instance) {
-                reject(Container._createMissingServiceDefinitionAndInstanceForIdentifierError(identifier))
-              } else {
-                resolve(instance)
-              }
-            })
+            if (undefined === instance) {
+              return Promise.reject(UndefinedServiceDefinitionAndInstanceError.createError(identifier))
+            }
+
+            return Promise.resolve(instance)
           })
         }
 
-        return Promise.reject(Container._createMissingServiceDefinitionAndInstanceForIdentifierError(identifier))
+        return Promise.reject(UndefinedServiceDefinitionAndInstanceError.createError(identifier))
       }
 
       loading.obj[identifier] = true
       loading.arr.push(identifier)
 
-      const promise = this._instantiate(this.getDefinition(identifier), loading)
+      const promise = this._instantiate(identifier, this.getDefinition(identifier), loading)
 
       this._serviceDefinitionsAlreadyUsedToInstantiateByIdentifier[identifier] = true
 

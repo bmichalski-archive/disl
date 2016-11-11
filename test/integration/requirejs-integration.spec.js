@@ -45,7 +45,7 @@ describe('Integration with requirejs', function () {
       })
   })
 
-  it('should throw an error if requirejs service does not exist', function () {
+  it('should throw an UndefinedServiceDefinitionAndInstanceError if requirejs service does not exist', function () {
     const container = new Container()
 
     container.registerInstanceLocator(
@@ -74,8 +74,8 @@ describe('Integration with requirejs', function () {
 
     return expect(container.get('foo'))
       .to.eventually
-      .be.instanceOf(Error)
-      .be.rejectedWith(/^Missing service definition and instance for identifier "foo"$/)
+      .be.instanceOf(UndefinedServiceDefinitionAndInstanceError)
+      .be.rejectedWith(/^Undefined service definition and instance for identifier "foo"$/)
   })
 
   context('get has already been used once to get the requirejs module', function () {
