@@ -4,6 +4,7 @@ import FactoryDefinition from './src/factory-definition'
 import Reference from './src/reference'
 import Parameter from './src/parameter'
 import MethodCall from './src/method-call'
+import ObjectLoader from './src/object-loader'
 import errors from './src/errors'
 
 const exports = {
@@ -12,7 +13,8 @@ const exports = {
   FactoryDefinition,
   Reference,
   Parameter,
-  MethodCall
+  MethodCall,
+  ObjectLoader
 }
 
 for (let i in errors) {
