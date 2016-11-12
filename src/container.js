@@ -18,8 +18,10 @@ import {
   GetServiceError
 } from './errors'
 
+import type {Service} from './types/service'
 import type {InjectableArguments} from './types/injectable-arguments'
-type scalar = (string|number|boolean|null)
+import type {scalar} from './types/scalar'
+
 type LoadingObject = {
   obj: Object<string, boolean>,
   arr: Array<string>
@@ -51,19 +53,19 @@ class Container {
    * @param {...string} identifiers
    *
    * @promise
-   * @resolve {Array<Object|Function>} an array of services
+   * @resolve {Array<Service>}
    * @reject {GetServiceError} in case any Error is raised when instantiating service
    *
    * @public
    */
-  get(...identifiers: Array<string>): Promise<Array<Object|Function>> {
+  get(...identifiers: Array<string>): Promise<Array<Service>> {
     const promises = []
 
-    identifiers.forEach((identifier) => {
+    identifiers.forEach((identifier: string): void => {
       promises.push(
         this
           ._doGetService(identifier, { obj: {}, arr: [] })
-          .catch((e) => {
+          .catch((e: Error): void => {
             throw GetServiceError.createError(identifier, e)
           })
       )
@@ -76,13 +78,13 @@ class Container {
    * Associates service with identifier
    *
    * @param {string} identifier
-   * @param {Object|Function} instance service instance
+   * @param {Service} instance service instance
    *
    * @returns {Container} current Container instance
    *
    * @public
    */
-  set(identifier: string, instance: (Object|Function)): Container {
+  set(identifier: string, instance: Service): Container {
     this._servicesByIdentifier[identifier] = instance
 
     return this
@@ -256,13 +258,13 @@ class Container {
    * used to prevent circular dependency related infinite loops
    *
    * @promise
-   * @resolve {Object}
+   * @resolve {Service}
    * @reject {FactoryMethodReturnsNothingError} in case a factory method returns nothing
    * @reject {MethodDoesNotExistError} in case a method call calls a method that does not exist
    *
    * @private
    */
-  _instantiate(identifier: string, definition: Definition, loading: LoadingObject): Promise<Object> {
+  _instantiate(identifier: string, definition: Definition, loading: LoadingObject): Promise<Service> {
     return this
       ._resolveArgs(definition.args, loading)
       .then((args: Array): Promise => {
@@ -285,7 +287,7 @@ class Container {
 
           let i, methodCall
 
-          const callMethod = (methodToCall: Function) => {
+          const callMethod = (methodToCall: Function): void => {
             methodCallsPromises.push(
               this
                 ._resolveArgs(methodCall.args, loading)
@@ -317,7 +319,7 @@ class Container {
           return resolve(
             Promise
               .all(methodCallsPromises)
-              .then((): Object => {
+              .then((): Service => {
                 return instance
               })
           )
@@ -356,11 +358,11 @@ class Container {
   /**
    * @param {string} identifier
    *
-   * @returns {Object|void}
+   * @returns {?Service}
    *
    * @private
    */
-  _locateInstance(identifier: string): Object|void {
+  _locateInstance(identifier: string): ?Service {
     let i
     let instance
 
@@ -382,15 +384,15 @@ class Container {
    * @param {LoadingObject} loading an object that keeps track of service instantiations,
    * used to prevent circular dependency related infinite loops
    *
-   * @promise {Array<any>} arguments of any type
+   * @promise {Array<Service|scalar>} an array of service instances or parameter values
    * @reject {UnsupportedArgumentTypeError}
    *
    * @private
    */
-  _resolveArgs(args: InjectableArguments, loading: LoadingObject): Promise {
+  _resolveArgs(args: InjectableArguments, loading: LoadingObject): Promise<Array<Service|scalar>> {
     const promises = []
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve: Function, reject: Function): void => {
       let i, arg
 
       for (i in args) {
@@ -413,9 +415,7 @@ class Container {
         }
       }
 
-      return resolve(
-        Promise.all(promises)
-      )
+      return resolve(Promise.all(promises))
     })
   }
 
@@ -427,21 +427,19 @@ class Container {
    * used to prevent circular dependency related infinite loops
    *
    * @promise
-   * @resolve {Object|Function} a service
+   * @resolve {Service} a service instance
    * @reject {CircularDependencyError} in case of a circular dependency
    * @reject {UndefinedServiceDefinitionAndInstanceError} in case neither an instance nor a definition is found
    *
    * @private
    */
-  _doGetService(identifier: string, loading: LoadingObject): Promise {
+  _doGetService(identifier: string, loading: LoadingObject): Promise<Service|CircularDependencyError|UndefinedServiceDefinitionAndInstanceError> {
     if (undefined !== loading.obj[identifier]) {
       const services = []
         .concat(loading.arr)
         .concat([ identifier ])
 
-      return Promise.reject(
-        CircularDependencyError.createError(services)
-      )
+      return Promise.reject(CircularDependencyError.createError(services))
     }
 
     if (!this.hasInstance(identifier)) {
@@ -452,13 +450,15 @@ class Container {
           /**
            * In case locate instance returns a promise, resolve promise
            */
-          return Promise.resolve(result).then((instance) => {
-            if (undefined === instance) {
-              return Promise.reject(UndefinedServiceDefinitionAndInstanceError.createError(identifier))
-            }
+          return Promise
+            .resolve(result)
+            .then((instance: ?Service): Promise<Service|UndefinedServiceDefinitionAndInstanceError> => {
+              if (undefined === instance) {
+                return Promise.reject(UndefinedServiceDefinitionAndInstanceError.createError(identifier))
+              }
 
-            return Promise.resolve(instance)
-          })
+              return Promise.resolve(instance)
+            })
         }
 
         return Promise.reject(UndefinedServiceDefinitionAndInstanceError.createError(identifier))
@@ -484,15 +484,13 @@ class Container {
   /**
    * Makes a deep copy of loading object so as not to modify it by reference.
    *
-   * @param {Object} loading
+   * @param {LoadingObject} loading loading object instance
    *
-   * @returns {Object} loading a deep copy of the original loading parameter
-   * @returns {Object<string, boolean>} loading.obj
-   * @returns {Array<string>} loading.arr
+   * @returns {LoadingObject} loading a deep copy of the original loading parameter
    *
    * @private
    */
-  static _deepCopyLoading(loading: Object): Object {
+  static _deepCopyLoading(loading: LoadingObject): LoadingObject {
     const newLoading = {
       obj: {},
       arr: [].concat(loading.arr)
