@@ -95,8 +95,7 @@ describe('Integration with angular', function () {
 
     return expect(container.get('unknown_service'))
       .to.eventually
-      .be.instanceOf(UndefinedServiceDefinitionAndInstanceError)
-      .and.be.rejectedWith(/^Undefined service definition and instance for identifier "unknown_service"$/)
+      .be.rejectedWith(GetServiceError, /^Error getting service "unknown_service": Undefined service definition and instance for identifier "unknown_service"$/)
   })
 
   context('there is a circular dependency between angular services', function () {
@@ -115,8 +114,7 @@ describe('Integration with angular', function () {
         function (container) {
           return expect(container.get('foo'))
             .to.eventually
-            .be.instanceOf(CircularDependencyError)
-            .and.to.be.rejectedWith('Circular dependency found: foo <- bar <- foo')
+            .be.rejectedWith(GetServiceError, /^Error getting service "foo":.*?Circular dependency found: foo <- bar <- foo.*?/)
         }
       )
     )

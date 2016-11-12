@@ -14,7 +14,8 @@ import {
   UndefinedParameterError,
   FactoryMethodReturnsNothingError,
   MethodDoesNotExistError,
-  CannotLocateServiceClassConstructorError
+  CannotLocateServiceClassConstructorError,
+  GetServiceError
 } from './errors'
 
 import type {InjectableArguments} from './types/injectable-arguments'
@@ -50,9 +51,8 @@ class Container {
    * @param {...string} identifiers
    *
    * @promise
-   * @resolve {Array<Object|Function>} a service
-   * @reject {UndefinedServiceDefinitionAndInstanceError} in case the service is undefined
-   * @reject {CircularDependencyError} in case of a circular dependency
+   * @resolve {Array<Object|Function>} an array of services
+   * @reject {GetServiceError} in case any Error is raised when instantiating service
    *
    * @public
    */
@@ -61,7 +61,11 @@ class Container {
 
     identifiers.forEach((identifier) => {
       promises.push(
-        this._doGetService(identifier, { obj: {}, arr: [] })
+        this
+          ._doGetService(identifier, { obj: {}, arr: [] })
+          .catch((e) => {
+            throw GetServiceError.createError(identifier, e)
+          })
       )
     })
 
@@ -272,9 +276,7 @@ class Container {
           instance = definition.factory.apply(undefined, args)
 
           if (undefined === instance) {
-            return Promise.reject(
-              FactoryMethodReturnsNothingError.createError(identifier)
-            )
+            return Promise.reject(FactoryMethodReturnsNothingError.createError(identifier))
           }
         }
 

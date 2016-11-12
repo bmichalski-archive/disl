@@ -10,7 +10,7 @@ class UndefinedParameterError extends DislError {
   /**
    * @param {string} identifier
    *
-   * @returns {UnsupportedArgumentTypeError}
+   * @returns {UndefinedParameterError}
    */
   static createError(identifier: string): UndefinedParameterError {
     return new UndefinedParameterError(

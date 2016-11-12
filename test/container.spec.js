@@ -13,8 +13,10 @@ if (typeof require !== 'undefined') {
     Parameter,
     MethodCall,
     Container,
-    FactoryMethodReturnsNothingError,
-    CannotLocateServiceClassConstructorError
+    UndefinedServiceDefinitionError,
+    ServiceDefinitionAlreadyUsedError,
+    UndefinedParameterError,
+    GetServiceError
   } = require('./di')
 }
 
@@ -63,15 +65,14 @@ describe('Container', function () {
         })
 
         context('and its factory method returns nothing', function () {
-          it('should throw an FactoryMethodReturnsNothingError', function () {
+          it('should throw a GetServiceError', function () {
             const definition = new FactoryDefinition(function () {})
 
             serviceContainer.setDefinition('foo', definition)
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.an.instanceOf(FactoryMethodReturnsNothingError)
-              .and.be.rejectedWith(/^Factory method for identifier "foo" returns nothing$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Factory method for identifier "foo" returns nothing$/)
           })
         })
 
@@ -157,28 +158,25 @@ describe('Container', function () {
         })
 
         context('but no required class constructor is found', function () {
-          it('should be rejected with a CannotLocateServiceClassConstructorError', function () {
+          it('should be rejected with a GetServiceError', function () {
             const serviceDefinition = new ClassConstructorDefinition('Foo')
 
             serviceContainer.setDefinition('foo', serviceDefinition)
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.rejectedWith(
-                CannotLocateServiceClassConstructorError,
-                /^Cannot locate service class constructor for class "Foo"$/
-              )
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Cannot locate service class constructor for class "Foo"$/)
           })
         })
       })
 
       context('and its not an instance of a supported class', function () {
-        it('should be rejected with a TypeError', function () {
+        it('should be rejected with a GetServiceError', function () {
           serviceContainer._serviceDefinitionsByIdentifier.foo = {}
 
           return expect(serviceContainer.get('foo'))
             .to.eventually
-            .be.rejectedWith(TypeError, /^Function return value violates contract.\n\nExpected:\nDefinition\n\nGot:\nObject$/)
+            .be.rejectedWith(GetServiceError, /^Error getting service "foo": Function return value violates contract.\n\nExpected:\nDefinition\n\nGot:\nObject$/)
         })
       })
     })
@@ -230,19 +228,19 @@ describe('Container', function () {
 
       context('and there is a circular dependency', function () {
         context('to the same service', function () {
-          it('should handle the situation by rejecting promise with a CircularDependencyError', function () {
+          it('should handle the situation by rejecting promise with a GetServiceError', function () {
             const fooServiceDefinition = new ClassConstructorDefinition('Foo', [ new Reference('foo') ])
 
             serviceContainer.setDefinition('foo', fooServiceDefinition)
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.rejectedWith(CircularDependencyError, /^Circular dependency found: foo <- foo$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Circular dependency found: foo <- foo$/)
           })
         })
 
         context('via another service', function () {
-          it('should handle the situation by rejecting promise with a CircularDependencyError', function () {
+          it('should handle the situation by rejecting promise with a GetServiceError', function () {
             const fooServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('bar') ])
             const barServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('qux') ])
             const quxServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('foo') ])
@@ -253,7 +251,7 @@ describe('Container', function () {
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.rejectedWith(CircularDependencyError, /^Circular dependency found: foo <- qux <- bar <- foo$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Circular dependency found: foo <- qux <- bar <- foo$/)
           })
         })
       })
@@ -290,7 +288,7 @@ describe('Container', function () {
       })
 
       context('but the called methods do not exist', function () {
-        it('should be rejected with a MethodDoesNotExistError', function () {
+        it('should be rejected with a GetServiceError', function () {
           const definition = new FactoryDefinition(function () { return {} })
 
           const spy = sinon.spy()
@@ -303,13 +301,13 @@ describe('Container', function () {
 
           return expect(serviceContainer.get('foo'))
             .to.eventually
-            .be.rejectedWith(MethodDoesNotExistError, /^Method "spy" does not exist$/)
+            .be.rejectedWith(GetServiceError, /^Error getting service "foo": Method "spy" does not exist$/)
         })
       })
 
       context('and there is a circular dependency', function () {
         context('to same service', function () {
-          it('should handle the situation by rejecting promise with a CircularDependencyError', function () {
+          it('should handle the situation by rejecting promise with a GetServiceError', function () {
             const definition = new FactoryDefinition(function () { return { meth: function () {} } })
 
             definition.methodCalls = [
@@ -320,12 +318,12 @@ describe('Container', function () {
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.rejectedWith(CircularDependencyError, /^Circular dependency found: foo <- foo$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Circular dependency found: foo <- foo$/)
           })
         })
 
         context('via another service', function () {
-          it('should handle circular dependency by rejecting promise with a CircularDependencyError', function () {
+          it('should handle circular dependency by rejecting promise with a GetServiceError', function () {
             const barDefinition = new FactoryDefinition(function () { return { meth: function () {} } })
 
             const fooDefinition = new FactoryDefinition(function () { return {} }, [ new Reference('bar') ])
@@ -339,7 +337,7 @@ describe('Container', function () {
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.rejectedWith(CircularDependencyError, /^Circular dependency found: foo <- bar <- foo$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Circular dependency found: foo <- bar <- foo$/)
           })
         })
       })
@@ -383,13 +381,10 @@ describe('Container', function () {
     })
 
     context('there is no service definition and no service instance defined for given service name', function () {
-      it('should be rejected with an UndefinedServiceDefinitionAndInstanceError', function () {
+      it('should be rejected with a GetServiceError', function () {
         return expect(serviceContainer.get('foo'))
           .to.eventually
-          .be.rejectedWith(
-            UndefinedServiceDefinitionAndInstanceError,
-            /^Undefined service definition and instance for identifier "foo"$/
-          )
+          .be.rejectedWith(GetServiceError, /^Error getting service "foo": Undefined service definition and instance for identifier "foo"$/)
       })
 
       context('but there is an instance locator returning something', function () {
@@ -413,7 +408,7 @@ describe('Container', function () {
       })
 
       context('and even the instance locator does not return a service', function () {
-        it('should be rejected with an UndefinedServiceDefinitionAndInstanceError', function () {
+        it('should be rejected with a GetServiceError', function () {
           const fooInstance = {}
 
           serviceContainer.registerInstanceLocator(function (identifier) {
@@ -424,10 +419,7 @@ describe('Container', function () {
 
           return expect(serviceContainer.get('bar'))
             .to.eventually
-            .be.rejectedWith(
-              UndefinedServiceDefinitionAndInstanceError,
-              /^Undefined service definition and instance for identifier "bar"$/
-            )
+            .be.rejectedWith(GetServiceError, /^Error getting service "bar": Undefined service definition and instance for identifier "bar"$/)
         })
       })
     })
@@ -495,10 +487,7 @@ describe('Container', function () {
           return serviceContainer.get('foo').then(function () {
             expect(function () {
               serviceContainer.setDefinition('foo', serviceDefinition)
-            }).to.throw(
-              ServiceDefinitionAlreadyUsedError,
-              /^Service definition for "foo" has already been used to instantiate a service, refusing to modify it$/
-            )
+            }).to.throw(ServiceDefinitionAlreadyUsedError, /^Service definition for "foo" has already been used to instantiate a service, refusing to modify it$/)
           })
         })
       })

@@ -8,6 +8,7 @@ import UndefinedParameterError from './errors/undefined-parameter-error'
 import UndefinedServiceDefinitionAndInstanceError from './errors/undefined-service-definition-and-instance-error'
 import UndefinedServiceDefinitionError from './errors/undefined-service-definition-error'
 import UnsupportedArgumentTypeError from './errors/unsupported-argument-type-error'
+import GetServiceError from './errors/get-service-error'
 
 module.exports = {
   CannotLocateServiceClassConstructorError,
@@ -19,5 +20,6 @@ module.exports = {
   UndefinedParameterError,
   UndefinedServiceDefinitionAndInstanceError,
   UndefinedServiceDefinitionError,
-  UnsupportedArgumentTypeError
+  UnsupportedArgumentTypeError,
+  GetServiceError
 }

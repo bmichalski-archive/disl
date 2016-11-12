@@ -5,8 +5,8 @@ import VError from 'verror'
  *
  * @public
  */
-class CircularDependencyError extends VError {
+class DislError extends VError {
 
 }
 
-export default CircularDependencyError
+export default DislError

@@ -6,7 +6,7 @@ if (typeof require !== 'undefined') {
   var expect = origRequire('chai').expect
   var {
     Container,
-    UndefinedServiceDefinitionAndInstanceError
+    GetServiceError
   } = require('../di')
 
   var require = origRequire('requirejs')
@@ -47,7 +47,7 @@ describe('Integration with requirejs', function () {
       })
   })
 
-  it('should throw an UndefinedServiceDefinitionAndInstanceError if requirejs service does not exist', function () {
+  it('should throw a GetServiceError if requirejs service does not exist', function () {
     const container = new Container()
 
     container.registerInstanceLocator(
@@ -76,8 +76,7 @@ describe('Integration with requirejs', function () {
 
     return expect(container.get('foo'))
       .to.eventually
-      .be.instanceOf(UndefinedServiceDefinitionAndInstanceError)
-      .be.rejectedWith(/^Undefined service definition and instance for identifier "foo"$/)
+      .be.rejectedWith(GetServiceError, /^Error getting service "foo": Undefined service definition and instance for identifier "foo"$/)
   })
 
   context('get has already been used once to get the requirejs module', function () {
