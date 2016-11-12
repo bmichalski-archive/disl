@@ -19,8 +19,8 @@ import {
 } from './errors'
 
 import type {Service} from './types/service'
+import type {ParameterValue} from './types/parameter-value'
 import type {InjectableArguments} from './types/injectable-arguments'
-import type {scalar} from './types/scalar'
 
 type LoadingObject = {
   obj: Object<string, boolean>,
@@ -180,13 +180,13 @@ class Container {
    *
    * @param {string} identifier parameter identifier
    *
-   * @returns {scalar} parameter value
+   * @returns {ParameterValue} parameter value
    *
    * @throws {UndefinedParameterError} if there is no parameter for given identifier
    *
    * @public
    */
-  getParameter(identifier: string): scalar {
+  getParameter(identifier: string): ParameterValue {
     if (undefined === this._parametersByIdentifier[identifier]) {
       throw UndefinedParameterError.createError(identifier)
     }
@@ -198,13 +198,13 @@ class Container {
    * Associates parameter with identifier
    *
    * @param {string} identifier
-   * @param {scalar} value
+   * @param {ParameterValue} value
    *
    * @returns {Container} current Container instance
    *
    * @public
    */
-  setParameter(identifier: string, value: scalar): Container {
+  setParameter(identifier: string, value: ParameterValue): Container {
     this._parametersByIdentifier[identifier] = value
 
     return this
@@ -384,12 +384,12 @@ class Container {
    * @param {LoadingObject} loading an object that keeps track of service instantiations,
    * used to prevent circular dependency related infinite loops
    *
-   * @promise {Array<Service|scalar>} an array of service instances or parameter values
+   * @promise {Array<Service|ParameterValue>} an array of service instances or parameter values
    * @reject {UnsupportedArgumentTypeError}
    *
    * @private
    */
-  _resolveArgs(args: InjectableArguments, loading: LoadingObject): Promise<Array<Service|scalar>> {
+  _resolveArgs(args: InjectableArguments, loading: LoadingObject): Promise<Array<Service|ParameterValue>> {
     const promises = []
 
     return new Promise((resolve: Function, reject: Function): void => {
