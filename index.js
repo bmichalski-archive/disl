@@ -4,8 +4,9 @@ import FactoryDefinition from './src/factory-definition'
 import Reference from './src/reference'
 import Parameter from './src/parameter'
 import MethodCall from './src/method-call'
+import errors from './src/errors'
 
-module.exports = {
+const exports = {
   Container,
   ClassConstructorDefinition,
   FactoryDefinition,
@@ -13,3 +14,11 @@ module.exports = {
   Parameter,
   MethodCall
 }
+
+for (let i in errors) {
+  if (errors.hasOwnProperty(i)) {
+    exports[i] = errors[i]
+  }
+}
+
+module.exports = exports
