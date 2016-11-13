@@ -64,6 +64,6 @@ has is set to:
 
 <hr />
 
-Next: [Service definitions](2-service-definition.md)
+Next: [Service definitions](2-service-definitions.md)
 <br />
 [README.md](../README.md)
