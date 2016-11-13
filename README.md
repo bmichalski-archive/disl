@@ -69,37 +69,76 @@ hasParameter is set to true if parameter has been defined, false otherwise
 
 #### Service definition
 ##### Create definition
-###### Using a factory method
+###### Using a ServiceMethodFactoryDefinition
+Factory example:
 ```js
-var definition = new FactoryDefinition(
-  function factory() {
-    return {
-      doSomething: function () {
-        /* some logic */
-      }
-    }
-  }
-)
-```
-
-###### Using a class constructor
-```js
-var definition = new ClassConstructorDefinition('barClass')
-```
-For this definition to work, the service container would need to know where to look for the class constructor.
-
-###### Register a class constructor locator
-```js
-var BarClass = function () {}
-
-BarClass.prototype = {
-  doSomething: function () {
+var factory = {
+  instantiate: function (someService, someParameter) {
     /* some logic */
+    return serviceInstance
   }
 }
+//In this case, factory is a known service
+container.set('app.foo_factory', factory)
+```
+Instantiate definition:
+```js
+var definition = new FunctionServiceFactoryDefinition(
+  [ new Reference('app.foo_factory'), 'instantiate' ],
+  [ new Reference('some_service_reference'), new Parameter('some_parameter') ]
+)
+```
+###### Using a FunctionServiceFactoryDefinition
+Factory example:
+```js
+var factory = function (someService, someParameter) {
+  /* some logic */
+  return serviceInstance
+}
+//In this case, factory is a known service
+container.set('app.foo_factory_function', factory)
+```
+Instantiate definition:
+```js
+var definition = new FunctionServiceFactoryDefinition(
+  new Reference('app.foo_factory_function'),
+  [ new Reference('some_service_reference'), new Parameter('some_parameter') ]
+)
+```
+###### Using a StaticMethodFactoryDefinition
+Declare factory:
+```js
+var BarClass = function () {}
+BarClass.instantiate = function () {
+  /* some logic */
+  return serviceInstance
+}
+```
+Instantiate definition:
+```js
+var definition = new StaticMethodFactoryDefinition([ 'BarClass', 'instantiate' ])
+```
+For this definition to work, the service container would need to know where to look for the class.
 
-container.registerClassLocator(function (classConstructorIdentifier) {
-  if ('barClass' === classConstructorIdentifier) {
+See [Register a class locator](#register-a-class-locator).
+
+###### Using a ClassConstructorDefinition
+Declare class:
+```js
+var BarClass = function () {}
+```
+Instantiate definition:
+```js
+var definition = new ClassConstructorDefinition('BarClass')
+```
+For this definition to work, the service container would need to know where to look for the class.
+
+See [Register a class locator](#register-a-class-locator).
+
+###### Register a class locator
+```js
+container.registerClassLocator(function (classIdentifier) {
+  if ('barClass' === classIdentifier) {
     return BarClass
   }
 })
@@ -149,11 +188,6 @@ has is set to:
 See [test file](https://github.com/bmichalski-js/disl/blob/master/test/integration/angular-integration.spec.js).
 #### Integration with requirejs
 See [test file](https://github.com/bmichalski-js/disl/blob/master/test/integration/requirejs-integration.spec.js).
-
-### TODO
-* Improve error handling
-  * with specific error types
-* add a way to describe services using JSON
 
 ### Motivations
 In the past, I have been working for a few years on a rather complex project using both [requirejs](http://requirejs.org/) and [angularjs](https://angularjs.org/) on the client side.
