@@ -63,6 +63,29 @@ describe('ObjectLoader', function () {
   }
 
   describe('#load', function () {
+    context('parameters are defined', function () {
+      it('should load the parameters', function() {
+        var container = new Container()
+        var objectLoader = new ObjectLoader(container)
+
+        objectLoader.load(
+          {
+            parameters: {
+              'foo': 'foo_value',
+              'bar': 42,
+              'baz': false,
+              'qux': null
+            }
+          }
+        )
+
+        expect(container.getParameter('foo')).to.equal('foo_value')
+        expect(container.getParameter('bar')).to.equal(42)
+        expect(container.getParameter('baz')).to.equal(false)
+        expect(container.getParameter('qux')).to.equal(null)
+      })
+    })
+
     context('a class constructor based definition is defined', function () {
       it('should load service definitions', function() {
         var container = new Container()
@@ -70,10 +93,12 @@ describe('ObjectLoader', function () {
 
         objectLoader.load(
           {
-            'app.foo': {
-              class: 'AppFoo',
-              args: args,
-              calls: calls
+            services: {
+              'app.foo': {
+                class: 'AppFoo',
+                args: args,
+                calls: calls
+              }
             }
           }
         )
@@ -97,10 +122,12 @@ describe('ObjectLoader', function () {
 
           objectLoader.load(
             {
-              'app.foo': {
-                factory: [ '@app.foo_factory', 'instantiate' ],
-                args: args,
-                calls: calls
+              services: {
+                'app.foo': {
+                  factory: [ '@app.foo_factory', 'instantiate' ],
+                  args: args,
+                  calls: calls
+                }
               }
             }
           )
@@ -124,10 +151,12 @@ describe('ObjectLoader', function () {
 
           objectLoader.load(
             {
-              'app.foo': {
-                factory: [ 'FooFactory', 'instantiate' ],
-                args: args,
-                calls: calls
+              services: {
+                'app.foo': {
+                  factory: [ 'FooFactory', 'instantiate' ],
+                  args: args,
+                  calls: calls
+                }
               }
             }
           )
@@ -150,10 +179,12 @@ describe('ObjectLoader', function () {
 
           objectLoader.load(
             {
-              'app.foo': {
-                factory: '@app.foo_function_service',
-                args: args,
-                calls: calls
+              services: {
+                'app.foo': {
+                  factory: '@app.foo_function_service',
+                  args: args,
+                  calls: calls
+                }
               }
             }
           )
@@ -178,11 +209,13 @@ describe('ObjectLoader', function () {
         expect(function () {
           objectLoader.load(
             {
-              'app.foo': {
-                class: 'AppFoo',
-                args: [
-                  'app.bar'
-                ]
+              services: {
+                'app.foo': {
+                  class: 'AppFoo',
+                  args: [
+                    'app.bar'
+                  ]
+                }
               }
             }
           )

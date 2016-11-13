@@ -32,50 +32,84 @@ class ObjectLoader {
    * @public
    */
   load(obj: Object): void {
-    for (let serviceIdentifier in obj) {
-      if (obj.hasOwnProperty(serviceIdentifier)) {
-        const objDefinition = obj[serviceIdentifier]
+    const objParameters = obj.parameters
+
+    if (undefined !== objParameters) {
+      this._doLoadParameters(objParameters)
+    }
+
+    const objServices = obj.services
+
+    if (undefined !== objServices) {
+      this._doLoadServices(objServices)
+    }
+  }
+
+  /**
+   * @param {Object} objParameters
+   *
+   * @private
+   */
+  _doLoadParameters(objParameters: Object): void {
+    for (let parameterIdentifier in objParameters) {
+      if (objParameters.hasOwnProperty(parameterIdentifier)) {
+        const parameterValue = objParameters[parameterIdentifier]
+
+        this._serviceContainer.setParameter(parameterIdentifier, parameterValue)
+      }
+    }
+  }
+
+  /**
+   * @param {Object} objServices
+   *
+   * @private
+   */
+  _doLoadServices(objServices: Object): void {
+    for (let serviceIdentifier in objServices) {
+      if (objServices.hasOwnProperty(serviceIdentifier)) {
+        const serviceObjDefinition = objServices[serviceIdentifier]
 
         let args
 
-        if (undefined !== objDefinition.args) {
-          args = objDefinition.args.map(ObjectLoader._getArgumentFromString)
+        if (undefined !== serviceObjDefinition.args) {
+          args = serviceObjDefinition.args.map(ObjectLoader._getArgumentFromString)
         } else {
           args = []
         }
 
         let definition
 
-        if (undefined !== objDefinition.class) {
-          definition = new ClassConstructorDefinition(objDefinition.class, args)
+        if (undefined !== serviceObjDefinition.class) {
+          definition = new ClassConstructorDefinition(serviceObjDefinition.class, args)
         }
 
-        if (undefined !== objDefinition.factory) {
-          if (objDefinition.factory instanceof Array) {
+        if (undefined !== serviceObjDefinition.factory) {
+          if (serviceObjDefinition.factory instanceof Array) {
             /**
              * Case when given an array and first element of this array is a reference to a service
              */
-            if (0 === objDefinition.factory[0].indexOf('@')) {
+            if (0 === serviceObjDefinition.factory[0].indexOf('@')) {
               definition = new ServiceMethodFactoryDefinition(
                 [
-                  ObjectLoader._getServiceReferenceFromString(objDefinition.factory[0]),
-                  objDefinition.factory[1]
+                  ObjectLoader._getServiceReferenceFromString(serviceObjDefinition.factory[0]),
+                  serviceObjDefinition.factory[1]
                 ],
                 args
               )
             } else {
-              definition = new StaticMethodFactoryDefinition(objDefinition.factory, args)
+              definition = new StaticMethodFactoryDefinition(serviceObjDefinition.factory, args)
             }
           } else {
             definition = new FunctionServiceFactoryDefinition(
-              ObjectLoader._getServiceReferenceFromString(objDefinition.factory),
+              ObjectLoader._getServiceReferenceFromString(serviceObjDefinition.factory),
               args
             )
           }
         }
 
-        if (undefined !== objDefinition.calls) {
-          definition.methodCalls = objDefinition.calls.map(ObjectLoader._getMethodCallFromMethodCallArrayDefinition)
+        if (undefined !== serviceObjDefinition.calls) {
+          definition.methodCalls = serviceObjDefinition.calls.map(ObjectLoader._getMethodCallFromMethodCallArrayDefinition)
         }
 
         this._serviceContainer.setDefinition(serviceIdentifier, definition)
