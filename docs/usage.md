@@ -34,7 +34,7 @@ var hasInstance = container.hasInstance('app.bar')
 ```
 hasInstance is set to true if container has service instance, false otherwise
 ### Check if container has service
-That is either if container has service instance or it is able to instantiate it via a [definition](2-service-definitions.md):
+That is either if container has service instance or it is able to instantiate it via a [definition](service-definitions.md):
 ```js
 var has = container.has('app.bar')
 ```
@@ -59,6 +59,6 @@ hasParameter is set to true if parameter has been defined, false otherwise
 
 <hr />
 
-Next: [Service definitions](2-service-definitions.md)
+Next: [Load configuration](load-configuration.md)
 <br />
 [README.md](../README.md)

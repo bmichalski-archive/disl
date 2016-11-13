@@ -6,8 +6,8 @@ See [test file](https://github.com/bmichalski-js/disl/blob/master/test/integrati
 
 <hr />
 
-Next: [Why?](4-why.md)
+Next: [Why?](why.md)
 <br />
-Previous: [Service definitions](2-service-definitions.md)
+Previous: [Service definitions](service-definitions.md)
 <br />
 [README.md](../README.md)

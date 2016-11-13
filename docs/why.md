@@ -15,6 +15,6 @@ This work has been influenced by my use the [Symfony dependency-injection compon
 
 <hr />
 
-Previous: [More examples](3-more-examples.md)
+Previous: [More examples](more-examples.md)
 <br />
 [README.md](../README.md)

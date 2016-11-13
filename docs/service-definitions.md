@@ -99,8 +99,8 @@ container.get('app.bar').then(function (services) {
 
 <hr />
 
-Next: [More examples](3-more-examples.md)
+Next: [More examples](more-examples.md)
 <br />
-Previous: [Usage](1-usage.md)
+Previous: [Load configuration](load-configuration.md)
 <br />
 [README.md](../README.md)
