@@ -77,12 +77,16 @@ container.registerClassLocator(function (classIdentifier) {
 container.setDefinition('app.bar', definition)
 ```
 ## Get definition
-Example:
 ```js
 var definition = new ClassConstructorDefinition('BarClass')
 container.setDefinition('app.bar', definition)
 var definition2 = container.getDefinition('app.bar', definition)
 ```
+## Check if container has definition
+```js
+var hasDefinition = container.hasDefinition('app.bar')
+```
+hasDefinition is set to true if container has service definition, false otherwise
 Here, definition2 === definition
 ## Get service from definition
 Similar to #set then #get except that service instantiation is done automatically when calling #get after #setDefinition:

@@ -33,6 +33,14 @@ container.get('app.foo', 'app.bar').then(function (services) {
 var hasInstance = container.hasInstance('app.bar')
 ```
 hasInstance is set to true if container has service instance, false otherwise
+### Check if container has service
+That is either if container has service instance or it is able to instantiate it via a [definition](2-service-definitions.md):
+```js
+var has = container.has('app.bar')
+```
+has is set to:
+* true if container either has service definition or has service instance
+* false otherwise
 ## Parameters
 ### Set
 ```js
@@ -48,19 +56,6 @@ parameter is set to 42
 var hasParameter = container.hasParameter('foo_parameter')
 ```
 hasParameter is set to true if parameter has been defined, false otherwise
-### Check if container has service definition
-```js
-var hasDefinition = container.hasDefinition('app.bar')
-```
-hasDefinition is set to true if container has service definition, false otherwise
-### Check if container has service
-That is either if container has service instance or it is able to instantiate it:
-```js
-var has = container.has('app.bar')
-```
-has is set to:
-* true if container either has service definition or has service instance
-* false otherwise
 
 <hr />
 
