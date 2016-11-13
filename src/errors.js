@@ -9,8 +9,10 @@ import UndefinedServiceDefinitionAndInstanceError from './errors/undefined-servi
 import UndefinedServiceDefinitionError from './errors/undefined-service-definition-error'
 import UnsupportedArgumentTypeError from './errors/unsupported-argument-type-error'
 import GetServiceError from './errors/get-service-error'
+import UnknownArgumentFormatError from './errors/unknown-argument-format-error'
+import FactoryMethodDoesNotExistError from './errors/factory-method-does-not-exist-error'
 
-module.exports = {
+export {
   CannotLocateServiceClassConstructorError,
   CircularDependencyError,
   DislError,
@@ -21,5 +23,23 @@ module.exports = {
   UndefinedServiceDefinitionAndInstanceError,
   UndefinedServiceDefinitionError,
   UnsupportedArgumentTypeError,
-  GetServiceError
+  GetServiceError,
+  UnknownArgumentFormatError,
+  FactoryMethodDoesNotExistError
+}
+
+export default {
+  CannotLocateServiceClassConstructorError,
+  CircularDependencyError,
+  DislError,
+  FactoryMethodReturnsNothingError,
+  MethodDoesNotExistError,
+  ServiceDefinitionAlreadyUsedError,
+  UndefinedParameterError,
+  UndefinedServiceDefinitionAndInstanceError,
+  UndefinedServiceDefinitionError,
+  UnsupportedArgumentTypeError,
+  GetServiceError,
+  UnknownArgumentFormatError,
+  FactoryMethodDoesNotExistError
 }

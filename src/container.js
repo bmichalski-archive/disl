@@ -1,6 +1,8 @@
-import Definition from './definition'
-import ClassConstructorDefinition from './class-constructor-definition'
-import FactoryDefinition from './factory-definition'
+import Definition from './definition/definition'
+import ClassConstructorDefinition from './definition/class-constructor-definition'
+import ServiceMethodFactoryDefinition from './definition/service-method-factory-definition'
+import FunctionServiceFactoryDefinition from './definition/function-service-factory-definition'
+import StaticMethodFactoryDefinition from './definition/static-method-factory-definition'
 import Reference from './reference'
 import Parameter from './parameter'
 import MethodCall from './method-call'
@@ -15,7 +17,8 @@ import {
   FactoryMethodReturnsNothingError,
   MethodDoesNotExistError,
   CannotLocateServiceClassConstructorError,
-  GetServiceError
+  GetServiceError,
+  FactoryMethodDoesNotExistError
 } from './errors'
 
 import type {Service} from './types/service'
@@ -43,7 +46,7 @@ class Container {
     this._serviceDefinitionsByIdentifier = {}
     this._parametersByIdentifier = {}
     this._serviceDefinitionsAlreadyUsedToInstantiateByIdentifier = {}
-    this._classConstructorLocators = []
+    this._classLocators = []
     this._instanceLocators = []
   }
 
@@ -230,8 +233,8 @@ class Container {
    *
    * @public
    */
-  registerClassConstructorLocator(locator: LocatorCallback): Container {
-    this._classConstructorLocators.push(locator)
+  registerClassLocator(locator: LocatorCallback): Container {
+    this._classLocators.push(locator)
 
     return this
   }
@@ -268,62 +271,97 @@ class Container {
     return this
       ._resolveArgs(definition.args, loading)
       .then((args: Array): Promise => {
-        let instance
+        const doGetInstance = (): Service => {
+          let instance
 
-        if (definition instanceof ClassConstructorDefinition) {
-          const classConstructor = this._locateServiceClassConstructor(definition.classConstructorIdentifier)
+          if (definition instanceof ClassConstructorDefinition) {
+            const classConstructor = this._locateClassConstructor(definition.classConstructorIdentifier)
 
-          instance = new (Function.prototype.bind.apply(classConstructor, [ undefined ].concat(args)))
-        } else if (definition instanceof FactoryDefinition) {
-          instance = definition.factory.apply(undefined, args)
+            return Promise.resolve(
+              new (Function.prototype.bind.apply(classConstructor, [ undefined ].concat(args)))
+            )
+          } else if (definition instanceof StaticMethodFactoryDefinition) {
+            const factoryIdentifier = definition.factory[0]
+            const factoryMethodName = definition.factory[1]
 
-          if (undefined === instance) {
-            return Promise.reject(FactoryMethodReturnsNothingError.createError(identifier))
+            const classObj = this._locateClassConstructor(factoryIdentifier)
+
+            const method = classObj[factoryMethodName]
+
+            return Promise.resolve(method.apply(undefined, args))
+          } else if (definition instanceof ServiceMethodFactoryDefinition) {
+            const factoryIdentifier = definition.factory[0].id
+            const factoryMethodName = definition.factory[1]
+
+            return this._doGetService(factoryIdentifier, loading)
+              .then((service: Service): Promise<Service> => {
+                if (undefined === service[factoryMethodName]) {
+                  return Promise.reject(FactoryMethodDoesNotExistError.createError(factoryMethodName, factoryIdentifier))
+                }
+
+                const factoryMethod = service[factoryMethodName]
+
+                instance = factoryMethod.apply(service, args)
+
+                if (undefined === instance) {
+                  return Promise.reject(FactoryMethodReturnsNothingError.createError(identifier))
+                }
+
+                return Promise.resolve(instance)
+              })
+          } else if (definition instanceof FunctionServiceFactoryDefinition) {
+            const factoryIdentifier = definition.factory.id
+
+            return this._doGetService(factoryIdentifier, loading)
+              .then((service: Service): Promise<Service> => {
+                const instance = service.apply(service, args)
+
+                return Promise.resolve(instance)
+              })
           }
         }
 
-        return new Promise((resolve, reject) => {
-          const methodCallsPromises = []
+        return doGetInstance()
+          .then((instance: Service): Promise<Service> => {
+            const methodCallsPromises = []
 
-          let i, methodCall
+            let i, methodCall
 
-          const callMethod = (methodToCall: Function): void => {
-            methodCallsPromises.push(
-              this
-                ._resolveArgs(methodCall.args, loading)
-                .then((args: Array): ?(Promise|mixed) => {
-                  return methodToCall.apply(instance, args)
-                })
-            )
-          }
-
-          function getMethodCall(i): MethodCall {
-            return definition.methodCalls[i]
-          }
-
-          for (i in definition.methodCalls) {
-            if (definition.methodCalls.hasOwnProperty(i)) {
-              methodCall = getMethodCall(i)
-
-              const methodName = methodCall.name
-              const methodToCall = instance[methodName]
-
-              if (undefined === methodToCall) {
-                return reject(MethodDoesNotExistError.createError(methodName))
-              }
-
-              callMethod(methodToCall)
+            const callMethod = (methodToCall: Function): void => {
+              methodCallsPromises.push(
+                this
+                  ._resolveArgs(methodCall.args, loading)
+                  .then((args: Array): ?(Promise|mixed) => {
+                    return methodToCall.apply(instance, args)
+                  })
+              )
             }
-          }
 
-          return resolve(
-            Promise
+            function getMethodCall(methodCallIdentifier: string): MethodCall {
+              return definition.methodCalls[methodCallIdentifier]
+            }
+
+            for (i in definition.methodCalls) {
+              if (definition.methodCalls.hasOwnProperty(i)) {
+                methodCall = getMethodCall(i)
+
+                const methodName = methodCall.name
+                const methodToCall = instance[methodName]
+
+                if (undefined === methodToCall) {
+                  return Promise.reject(MethodDoesNotExistError.createError(methodName))
+                }
+
+                callMethod(methodToCall)
+              }
+            }
+
+            return Promise
               .all(methodCallsPromises)
               .then((): Service => {
                 return instance
               })
-          )
-        })
+          })
       })
   }
 
@@ -338,12 +376,12 @@ class Container {
    *
    * @private
    */
-  _locateServiceClassConstructor(identifier: string): Function {
+  _locateClassConstructor(identifier: string): Function {
     let i, classConstructor
 
-    for (i in this._classConstructorLocators) {
-      if (this._classConstructorLocators.hasOwnProperty(i)) {
-        classConstructor = this._classConstructorLocators[i](identifier)
+    for (i in this._classLocators) {
+      if (this._classLocators.hasOwnProperty(i)) {
+        classConstructor = this._classLocators[i](identifier)
 
         if (undefined !== classConstructor) {
           return classConstructor
