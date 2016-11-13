@@ -1,6 +1,8 @@
 import Container from './src/container'
 import ClassConstructorDefinition from './src/class-constructor-definition'
-import FactoryDefinition from './src/factory-definition'
+import ServiceMethodFactoryDefinition from './src/service-method-factory-definition'
+import StaticMethodFactoryDefinition from './src/static-method-factory-definition'
+import FunctionServiceFactoryDefinition from './src/function-service-factory-definition'
 import Reference from './src/reference'
 import Parameter from './src/parameter'
 import MethodCall from './src/method-call'
@@ -10,7 +12,9 @@ import errors from './src/errors'
 const exports = {
   Container,
   ClassConstructorDefinition,
-  FactoryDefinition,
+  ServiceMethodFactoryDefinition,
+  StaticMethodFactoryDefinition,
+  FunctionServiceFactoryDefinition,
   Reference,
   Parameter,
   MethodCall,

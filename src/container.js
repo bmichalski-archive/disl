@@ -1,6 +1,6 @@
 import Definition from './definition'
 import ClassConstructorDefinition from './class-constructor-definition'
-import FactoryDefinition from './factory-definition'
+import ServiceMethodFactoryDefinition from './service-method-factory-definition'
 import Reference from './reference'
 import Parameter from './parameter'
 import MethodCall from './method-call'
@@ -268,62 +268,83 @@ class Container {
     return this
       ._resolveArgs(definition.args, loading)
       .then((args: Array): Promise => {
-        let instance
+        const doGetInstance = (): Service => {
+          let instance
 
-        if (definition instanceof ClassConstructorDefinition) {
-          const classConstructor = this._locateServiceClassConstructor(definition.classConstructorIdentifier)
+          if (definition instanceof ClassConstructorDefinition) {
+            const classConstructor = this._locateServiceClassConstructor(definition.classConstructorIdentifier)
 
-          instance = new (Function.prototype.bind.apply(classConstructor, [ undefined ].concat(args)))
-        } else if (definition instanceof FactoryDefinition) {
-          instance = definition.factory.apply(undefined, args)
+            return Promise.resolve(
+              new (Function.prototype.bind.apply(classConstructor, [ undefined ].concat(args)))
+            )
+          } else if (definition instanceof ServiceMethodFactoryDefinition) {
+            const factoryIdentifier = definition.factory[0].id
+            const factoryMethodName = definition.factory[1]
 
-          if (undefined === instance) {
-            return Promise.reject(FactoryMethodReturnsNothingError.createError(identifier))
+            return this._doGetService(factoryIdentifier, loading)
+              .then((service: Service): Promise<Service> => {
+                if (undefined === service[factoryMethodName]) {
+                  //TODO Add specific error
+                  //TODO Test this error
+                  throw new Error('Missing ' + factoryMethodName + ' factory method for in factory service ' + factoryIdentifier)
+                }
+
+                const factoryMethod = service[factoryMethodName]
+
+                instance = factoryMethod.apply(service, args)
+
+                if (undefined === instance) {
+                  return Promise.reject(FactoryMethodReturnsNothingError.createError(identifier))
+                }
+
+                return Promise.resolve(instance)
+              })
           }
+
+          //TODO Implement support for other definition types
         }
 
-        return new Promise((resolve, reject) => {
-          const methodCallsPromises = []
+        return doGetInstance()
+          .then((instance: Service): Promise<Service> => {
+            const methodCallsPromises = []
 
-          let i, methodCall
+            let i, methodCall
 
-          const callMethod = (methodToCall: Function): void => {
-            methodCallsPromises.push(
-              this
-                ._resolveArgs(methodCall.args, loading)
-                .then((args: Array): ?(Promise|mixed) => {
-                  return methodToCall.apply(instance, args)
-                })
-            )
-          }
-
-          function getMethodCall(i): MethodCall {
-            return definition.methodCalls[i]
-          }
-
-          for (i in definition.methodCalls) {
-            if (definition.methodCalls.hasOwnProperty(i)) {
-              methodCall = getMethodCall(i)
-
-              const methodName = methodCall.name
-              const methodToCall = instance[methodName]
-
-              if (undefined === methodToCall) {
-                return reject(MethodDoesNotExistError.createError(methodName))
-              }
-
-              callMethod(methodToCall)
+            const callMethod = (methodToCall: Function): void => {
+              methodCallsPromises.push(
+                this
+                  ._resolveArgs(methodCall.args, loading)
+                  .then((args: Array): ?(Promise|mixed) => {
+                    return methodToCall.apply(instance, args)
+                  })
+              )
             }
-          }
 
-          return resolve(
-            Promise
+            function getMethodCall(methodCallIdentifier: string): MethodCall {
+              return definition.methodCalls[methodCallIdentifier]
+            }
+
+            for (i in definition.methodCalls) {
+              if (definition.methodCalls.hasOwnProperty(i)) {
+                methodCall = getMethodCall(i)
+
+                const methodName = methodCall.name
+                const methodToCall = instance[methodName]
+
+                if (undefined === methodToCall) {
+                  return Promise.reject(MethodDoesNotExistError.createError(methodName))
+                }
+
+                callMethod(methodToCall)
+              }
+            }
+
+            return Promise
               .all(methodCallsPromises)
               .then((): Service => {
                 return instance
               })
-          )
-        })
+          })
       })
   }
 

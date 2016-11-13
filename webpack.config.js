@@ -9,11 +9,10 @@ let uglifyConfig
 
 if ('production' === env) {
   uglifyConfig = {}
+  plugins.push(new webpack.optimize.UglifyJsPlugin(uglifyConfig))
 } else {
   uglifyConfig = {}
 }
-
-plugins.push(new webpack.optimize.UglifyJsPlugin(uglifyConfig))
 
 module.exports = {
   devtool: devtool,

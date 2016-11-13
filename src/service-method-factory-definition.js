@@ -1,4 +1,5 @@
 import Definition from './definition'
+import Reference from './reference'
 
 import type {InjectableArguments} from './types/injectable-arguments'
 
@@ -7,15 +8,15 @@ import type {InjectableArguments} from './types/injectable-arguments'
  *
  * @public
  */
-class FactoryDefinition extends Definition {
+class ServiceMethodFactoryDefinition extends Definition {
   
   /**
    * Constructor
    *
-   * @param {Function} factory
+   * @param {[Reference, string]} factory
    * @param {?InjectableArguments} [args=[]]
    */
-  constructor(factory: Function, args: ?InjectableArguments = []) {
+  constructor(factory: [Reference, string], args: ?InjectableArguments = []) {
     super(args)
 
     this._factory = factory
@@ -24,11 +25,11 @@ class FactoryDefinition extends Definition {
   /**
    * Gets factory
    *
-   * @returns {Function}
+   * @returns {[Reference, string]}
    */
-  get factory(): Function {
+  get factory(): [Reference, string] {
     return this._factory
   }
 }
 
-export default FactoryDefinition
+export default ServiceMethodFactoryDefinition

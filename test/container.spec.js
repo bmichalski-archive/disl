@@ -7,7 +7,7 @@ if (typeof require !== 'undefined') {
   var sinon = require('sinon')
 
   var {
-    FactoryDefinition,
+    ServiceMethodFactoryDefinition,
     ClassConstructorDefinition,
     Reference,
     Parameter,
@@ -41,19 +41,36 @@ describe('Container', function () {
       })
   }
 
+  function addFactoryAndDefinition(serviceIdentifier, instantiate, args) {
+    if (undefined === args) {
+      args = []
+    }
+
+    const factoryIdentifier = 'app.' + serviceIdentifier + '_factory'
+
+    serviceContainer.set(
+      factoryIdentifier,
+      {
+        instantiate: instantiate
+      }
+    )
+
+    const serviceDefinition = new ServiceMethodFactoryDefinition([new Reference(factoryIdentifier), 'instantiate'], args)
+
+    serviceContainer.setDefinition(serviceIdentifier, serviceDefinition)
+
+    return serviceDefinition
+  }
+
   describe('#get', function () {
     it('should get the service associated with identifier', simpleGetSetTest)
 
     context('a service definition is set', function () {
-      context('and is an instance of FactoryDefinition', function () {
+      context('and is an instance of ServiceMethodFactoryDefinition', function () {
         it('should return the service instance', function () {
           const serviceInstance = {}
 
-          const serviceDefinition = new FactoryDefinition(function () {
-            return serviceInstance
-          })
-
-          serviceContainer.setDefinition('foo', serviceDefinition)
+          addFactoryAndDefinition('foo', () => serviceInstance)
 
           return expect(serviceContainer.get('foo'))
             .to.eventually
@@ -66,9 +83,7 @@ describe('Container', function () {
 
         context('and its factory method returns nothing', function () {
           it('should throw a GetServiceError', function () {
-            const definition = new FactoryDefinition(function () {})
-
-            serviceContainer.setDefinition('foo', definition)
+            addFactoryAndDefinition('foo', () => undefined)
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
@@ -82,7 +97,7 @@ describe('Container', function () {
               it('should return the same object instance', function () {
                 const Foo = function () {}
 
-                serviceContainer.setDefinition('foo', new FactoryDefinition(function () { return new Foo() }))
+                addFactoryAndDefinition('foo', () => { return new Foo() })
 
                 return expect(serviceContainer.get('foo', 'foo'))
                   .to.eventually
@@ -101,7 +116,7 @@ describe('Container', function () {
               it('should return the same object instance', function () {
                 const Foo = function () {}
 
-                serviceContainer.setDefinition('foo', new FactoryDefinition(function () { return new Foo() }))
+                addFactoryAndDefinition('foo', () => { return new Foo() })
 
                 function expectServices(services) {
                   expect(services)
@@ -198,14 +213,10 @@ describe('Container', function () {
           expect(quxParam).to.be.equal('qux_value')
         }
 
-        const serviceDefinition = new FactoryDefinition(
+        addFactoryAndDefinition(
+          'foo',
           function() {
-            return new Foo(
-              arguments[0],
-              arguments[1],
-              arguments[2],
-              arguments[3]
-            )
+            return new Foo(arguments[0], arguments[1], arguments[2], arguments[3])
           },
           [
             new Reference('bar'),
@@ -214,8 +225,6 @@ describe('Container', function () {
             new Parameter('qux')
           ]
         )
-
-        serviceContainer.setDefinition('foo', serviceDefinition)
 
         return expect(serviceContainer.get('foo'))
           .to.eventually
@@ -241,13 +250,9 @@ describe('Container', function () {
 
         context('via another service', function () {
           it('should handle the situation by rejecting promise with a GetServiceError', function () {
-            const fooServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('bar') ])
-            const barServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('qux') ])
-            const quxServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('foo') ])
-
-            serviceContainer.setDefinition('foo', fooServiceDefinition)
-            serviceContainer.setDefinition('bar', barServiceDefinition)
-            serviceContainer.setDefinition('qux', quxServiceDefinition)
+            addFactoryAndDefinition('foo', () => undefined, [ new Reference('bar') ])
+            addFactoryAndDefinition('bar', () => undefined, [ new Reference('qux') ])
+            addFactoryAndDefinition('qux', () => undefined, [ new Reference('foo') ])
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
@@ -267,16 +272,17 @@ describe('Container', function () {
         const spy = sinon.spy()
         const spy2 = sinon.spy()
 
-        const definition = new FactoryDefinition(function () {
-          return { spy: spy, spy2: spy2 }
-        })
+        const definition = addFactoryAndDefinition(
+          'foo',
+          () => {
+            return { spy: spy, spy2: spy2 }
+          }
+        )
 
         definition.methodCalls = [
           new MethodCall('spy'),
           new MethodCall('spy2', [ new Reference('bar'), new Parameter('qux') ])
         ]
-
-        serviceContainer.setDefinition('foo', definition)
 
         return serviceContainer.get('foo').then(function () {
           assert(spy.calledOnce)
@@ -289,15 +295,13 @@ describe('Container', function () {
 
       context('but the called methods do not exist', function () {
         it('should be rejected with a GetServiceError', function () {
-          const definition = new FactoryDefinition(function () { return {} })
-
           const spy = sinon.spy()
+
+          const definition = addFactoryAndDefinition('foo', () => { return {} })
 
           definition.methodCalls = [
             new MethodCall('spy')
           ]
-
-          serviceContainer.setDefinition('foo', definition)
 
           return expect(serviceContainer.get('foo'))
             .to.eventually
@@ -308,13 +312,18 @@ describe('Container', function () {
       context('and there is a circular dependency', function () {
         context('to same service', function () {
           it('should handle the situation by rejecting promise with a GetServiceError', function () {
-            const definition = new FactoryDefinition(function () { return { meth: function () {} } })
+            const definition = addFactoryAndDefinition(
+              'foo',
+              () => {
+                return {
+                  meth: function () {}
+                }
+              }
+            )
 
             definition.methodCalls = [
               new MethodCall('meth', [ new Reference('foo') ])
             ]
-
-            serviceContainer.setDefinition('foo', definition)
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
@@ -324,16 +333,24 @@ describe('Container', function () {
 
         context('via another service', function () {
           it('should handle circular dependency by rejecting promise with a GetServiceError', function () {
-            const barDefinition = new FactoryDefinition(function () { return { meth: function () {} } })
+            addFactoryAndDefinition(
+              'foo',
+              () => undefined,
+              [ new Reference('bar') ]
+            )
 
-            const fooDefinition = new FactoryDefinition(function () { return {} }, [ new Reference('bar') ])
+            const barDefinition = addFactoryAndDefinition(
+              'bar',
+              () => {
+                return {
+                  meth: function () {}
+                }
+              }
+            )
 
             barDefinition.methodCalls = [
               new MethodCall('meth', [ new Reference('foo') ])
             ]
-
-            serviceContainer.setDefinition('foo', fooDefinition)
-            serviceContainer.setDefinition('bar', barDefinition)
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
@@ -367,8 +384,8 @@ describe('Container', function () {
         const fooInstance = {}
         const barInstance = {}
 
-        serviceContainer.setDefinition('foo', new FactoryDefinition(function () { return fooInstance }))
-        serviceContainer.setDefinition('bar', new FactoryDefinition(function () { return barInstance }))
+        addFactoryAndDefinition('foo', () => fooInstance)
+        addFactoryAndDefinition('bar', () => barInstance)
 
         return expect(serviceContainer.get('foo', 'bar'))
           .to.eventually
@@ -455,9 +472,7 @@ describe('Container', function () {
   })
 
   function simpleGetDefinitionSetDefinitionTest() {
-    const serviceDefinition = new FactoryDefinition(function () {})
-
-    serviceContainer.setDefinition('foo', serviceDefinition)
+    const serviceDefinition = addFactoryAndDefinition('foo')
 
     expect(serviceContainer.getDefinition('foo')).to.be.equal(serviceDefinition)
   }
@@ -478,11 +493,7 @@ describe('Container', function () {
     context('the service definition has already been set', function () {
       context('the service definition has already been used to instantiate a service', function () {
         it('should throw a ServiceDefinitionAlreadyUsedError', function () {
-          const serviceDefinition = new FactoryDefinition(function () {
-            return {}
-          })
-
-          serviceContainer.setDefinition('foo', serviceDefinition)
+          const serviceDefinition = addFactoryAndDefinition('foo', () => { return {} })
 
           return serviceContainer.get('foo').then(function () {
             expect(function () {
@@ -547,11 +558,9 @@ describe('Container', function () {
       })
     })
 
-    context('the service has no definition', function () {
+    context('the service has a definition', function () {
       it('should return true', function () {
-        const definition = new FactoryDefinition(function () {})
-
-        serviceContainer.setDefinition('foo', definition)
+        addFactoryAndDefinition('foo')
 
         expect(serviceContainer.hasDefinition('foo')).to.be.equal(true)
       })
@@ -591,7 +600,7 @@ describe('Container', function () {
 
     context('the service has no instance but a definition', function () {
       it('should return false', function () {
-        serviceContainer.setDefinition('foo', new FactoryDefinition(function() {}))
+        addFactoryAndDefinition('foo')
 
         expect(serviceContainer.has('foo')).to.be.equal(true)
       })
