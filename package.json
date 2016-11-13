@@ -1,6 +1,26 @@
 {
   "name": "@bmichalski/disl",
-  "description": "A dependency injector / service locator hybrid component",
+  "description": "A dependency injector / service locator hybrid component with a promised-based service container",
+  "keywords": [
+    "dependency injection",
+    "dependency injector",
+    "dependency",
+    "dependencies",
+    "injector",
+    "injection",
+    "di",
+    "service locator",
+    "service",
+    "locator",
+    "service container",
+    "service",
+    "container",
+    "promise",
+    "promise-based",
+    "promise based",
+    "inversion of control",
+    "ioc"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/bmichalski-js/disl.git"
