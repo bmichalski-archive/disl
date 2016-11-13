@@ -3,11 +3,13 @@
 if (typeof require !== 'undefined') {
   var expect = require('chai').expect
 
-  var di = require('./di')
-
-  var ClassConstructorDefinition = di.ClassConstructorDefinition
-  var Reference = di.Reference
+  var disl = require('./di')
 }
+
+var {
+  ClassConstructorDefinition,
+  Reference
+} = disl
 
 describe('ClassConstructorDefinition', function () {
   describe('#constructor', function () {

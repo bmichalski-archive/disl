@@ -2,22 +2,23 @@
 
 if (typeof require !== 'undefined') {
   var assert = require('assert')
-
   var expect = require('chai').expect
 
-  var {
-    ClassConstructorDefinition,
-    ServiceMethodFactoryDefinition,
-    StaticMethodFactoryDefinition,
-    FunctionServiceFactoryDefinition,
-    Reference,
-    Parameter,
-    MethodCall,
-    Container,
-    ObjectLoader,
-    UnknownArgumentFormatError
-  } = require('./di')
+  var disl = require('./di')
 }
+
+var {
+  ClassConstructorDefinition,
+  ServiceMethodFactoryDefinition,
+  StaticMethodFactoryDefinition,
+  FunctionServiceFactoryDefinition,
+  Reference,
+  Parameter,
+  MethodCall,
+  Container,
+  ObjectLoader,
+  UnknownArgumentFormatError
+} = disl
 
 describe('ObjectLoader', function () {
   let args = [

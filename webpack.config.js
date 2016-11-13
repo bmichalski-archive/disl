@@ -20,6 +20,7 @@ module.exports = {
   output: {
     path: './built',
     filename: filename,
+    library: "disl",
     libraryTarget: 'umd'
   },
   plugins: plugins,

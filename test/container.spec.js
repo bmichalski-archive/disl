@@ -6,21 +6,23 @@ if (typeof require !== 'undefined') {
   var expect = require('chai').expect
   var sinon = require('sinon')
 
-  var {
-    FunctionServiceFactoryDefinition,
-    StaticMethodFactoryDefinition,
-    ServiceMethodFactoryDefinition,
-    ClassConstructorDefinition,
-    Reference,
-    Parameter,
-    MethodCall,
-    Container,
-    UndefinedServiceDefinitionError,
-    ServiceDefinitionAlreadyUsedError,
-    UndefinedParameterError,
-    GetServiceError
-  } = require('./di')
+  var disl = require('./di')
 }
+
+var {
+  FunctionServiceFactoryDefinition,
+  StaticMethodFactoryDefinition,
+  ServiceMethodFactoryDefinition,
+  ClassConstructorDefinition,
+  Reference,
+  Parameter,
+  MethodCall,
+  Container,
+  UndefinedServiceDefinitionError,
+  ServiceDefinitionAlreadyUsedError,
+  UndefinedParameterError,
+  GetServiceError
+} = disl
 
 describe('Container', function () {
   let serviceContainer
