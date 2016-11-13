@@ -299,6 +299,15 @@ class Container {
 
                 return Promise.resolve(instance)
               })
+          } else if (definition instanceof FunctionServiceFactoryDefinition) {
+            const factoryIdentifier = definition.factory.id
+
+            return this._doGetService(factoryIdentifier, loading)
+              .then((service: Service): Promise<Service> => {
+                const instance = service.apply(service, args)
+
+                return Promise.resolve(instance)
+              })
           }
 
           //TODO Implement support for other definition types

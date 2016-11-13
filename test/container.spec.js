@@ -7,6 +7,8 @@ if (typeof require !== 'undefined') {
   var sinon = require('sinon')
 
   var {
+    FunctionServiceFactoryDefinition,
+    StaticMethodFactoryDefinition,
     ServiceMethodFactoryDefinition,
     ClassConstructorDefinition,
     Reference,
@@ -145,6 +147,76 @@ describe('Container', function () {
               })
             })
           })
+        })
+      })
+
+      context('and is an instance of FunctionServiceFactoryDefinition', function () {
+        it('should return the service instance', function () {
+          var serviceInstance = {}
+
+          serviceContainer.set('app.foo_factory_function', () => serviceInstance)
+
+          var definition = new FunctionServiceFactoryDefinition(
+            new Reference('app.foo_factory_function')
+          )
+
+          serviceContainer.setDefinition('app.foo', definition)
+
+          return expect(serviceContainer.get('app.foo'))
+            .to.eventually
+            .be.fulfilled
+            .then(function (services) {
+              expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+              expect(services[0]).to.be.equal(serviceInstance)
+            })
+        })
+
+        context('and the definition has arguments', function () {
+          it('should pass these arguments to the factory method', function () {
+            var barInstance = {}
+
+            serviceContainer.set('bar', barInstance)
+            serviceContainer.setParameter('foo', 'foo_value')
+
+            var serviceInstance = {}
+
+            var stub = sinon.stub().returns(serviceInstance)
+
+            serviceContainer.set('app.foo_factory_function', stub)
+
+            var definition = new FunctionServiceFactoryDefinition(
+              new Reference('app.foo_factory_function'),
+              [
+                new Reference('bar'),
+                new Parameter('foo')
+              ]
+            )
+
+            serviceContainer.setDefinition('app.foo', definition)
+
+            return expect(serviceContainer.get('app.foo'))
+              .to.eventually
+              .be.fulfilled
+              .then(function (services) {
+                expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+                expect(services[0]).to.be.equal(serviceInstance)
+
+                assert(
+                  stub.calledOnce,
+                  'Failed asserting that factory method is called only once.'
+                )
+                assert(
+                  stub.calledWithExactly(barInstance, 'foo_value'),
+                  'Failed asserting that factory method is called with and only with given arguments.'
+                )
+              })
+          })
+        })
+      })
+
+      context.skip('and is an instance of StaticMethodFactoryDefinition', function () {
+        it('should return the service instance', function () {
+          
         })
       })
 
