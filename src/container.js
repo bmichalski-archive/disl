@@ -1,6 +1,8 @@
 import Definition from './definition'
 import ClassConstructorDefinition from './class-constructor-definition'
 import ServiceMethodFactoryDefinition from './service-method-factory-definition'
+import FunctionServiceFactoryDefinition from './function-service-factory-definition'
+import StaticMethodFactoryDefinition from './static-method-factory-definition'
 import Reference from './reference'
 import Parameter from './parameter'
 import MethodCall from './method-call'
@@ -43,7 +45,7 @@ class Container {
     this._serviceDefinitionsByIdentifier = {}
     this._parametersByIdentifier = {}
     this._serviceDefinitionsAlreadyUsedToInstantiateByIdentifier = {}
-    this._classConstructorLocators = []
+    this._classLocators = []
     this._instanceLocators = []
   }
 
@@ -230,8 +232,8 @@ class Container {
    *
    * @public
    */
-  registerClassConstructorLocator(locator: LocatorCallback): Container {
-    this._classConstructorLocators.push(locator)
+  registerClassLocator(locator: LocatorCallback): Container {
+    this._classLocators.push(locator)
 
     return this
   }
@@ -272,11 +274,20 @@ class Container {
           let instance
 
           if (definition instanceof ClassConstructorDefinition) {
-            const classConstructor = this._locateServiceClassConstructor(definition.classConstructorIdentifier)
+            const classConstructor = this._locateClassConstructor(definition.classConstructorIdentifier)
 
             return Promise.resolve(
               new (Function.prototype.bind.apply(classConstructor, [ undefined ].concat(args)))
             )
+          } else if (definition instanceof StaticMethodFactoryDefinition) {
+            const factoryIdentifier = definition.factory[0]
+            const factoryMethodName = definition.factory[1]
+
+            const classObj = this._locateClassConstructor(factoryIdentifier)
+
+            const method = classObj[factoryMethodName]
+
+            return Promise.resolve(method.apply(undefined, args))
           } else if (definition instanceof ServiceMethodFactoryDefinition) {
             const factoryIdentifier = definition.factory[0].id
             const factoryMethodName = definition.factory[1]
@@ -368,12 +379,12 @@ class Container {
    *
    * @private
    */
-  _locateServiceClassConstructor(identifier: string): Function {
+  _locateClassConstructor(identifier: string): Function {
     let i, classConstructor
 
-    for (i in this._classConstructorLocators) {
-      if (this._classConstructorLocators.hasOwnProperty(i)) {
-        classConstructor = this._classConstructorLocators[i](identifier)
+    for (i in this._classLocators) {
+      if (this._classLocators.hasOwnProperty(i)) {
+        classConstructor = this._classLocators[i](identifier)
 
         if (undefined !== classConstructor) {
           return classConstructor

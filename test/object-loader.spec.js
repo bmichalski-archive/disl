@@ -98,7 +98,7 @@ describe('ObjectLoader', function () {
           objectLoader.load(
             {
               'app.foo': {
-                factory: [ '@app.foo_factory', 'instanciate' ],
+                factory: [ '@app.foo_factory', 'instantiate' ],
                 args: args,
                 calls: calls
               }
@@ -110,7 +110,7 @@ describe('ObjectLoader', function () {
           expect(definition).to.be.instanceOf(ServiceMethodFactoryDefinition)
           expect(definition.factory[0]).to.be.instanceOf(Reference)
           expect(definition.factory[0].id).to.be.equal('app.foo_factory')
-          expect(definition.factory[1]).to.be.equal('instanciate')
+          expect(definition.factory[1]).to.be.equal('instantiate')
 
           assertArgs(definition)
           assertCalls(definition)
@@ -125,7 +125,7 @@ describe('ObjectLoader', function () {
           objectLoader.load(
             {
               'app.foo': {
-                factory: [ 'FooFactory', 'instanciate' ],
+                factory: [ 'FooFactory', 'instantiate' ],
                 args: args,
                 calls: calls
               }
@@ -136,7 +136,7 @@ describe('ObjectLoader', function () {
 
           expect(definition).to.be.instanceOf(StaticMethodFactoryDefinition)
           expect(definition.factory[0]).to.be.equal('FooFactory')
-          expect(definition.factory[1]).to.be.equal('instanciate')
+          expect(definition.factory[1]).to.be.equal('instantiate')
 
           assertArgs(definition)
           assertCalls(definition)

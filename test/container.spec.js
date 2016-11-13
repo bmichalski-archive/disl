@@ -151,16 +151,24 @@ describe('Container', function () {
       })
 
       context('and is an instance of FunctionServiceFactoryDefinition', function () {
-        it('should return the service instance', function () {
-          var serviceInstance = {}
+        function setupServiceContainer(instantiateMethod, args) {
+          if (undefined === args) {
+            args = []
+          }
 
-          serviceContainer.set('app.foo_factory_function', () => serviceInstance)
+          serviceContainer.set('app.foo_factory_function', instantiateMethod)
 
           var definition = new FunctionServiceFactoryDefinition(
-            new Reference('app.foo_factory_function')
+            new Reference('app.foo_factory_function'), args
           )
 
           serviceContainer.setDefinition('app.foo', definition)
+        }
+
+        it('should return the service instance', function () {
+          var serviceInstance = {}
+
+          setupServiceContainer(() => serviceInstance)
 
           return expect(serviceContainer.get('app.foo'))
             .to.eventually
@@ -182,17 +190,13 @@ describe('Container', function () {
 
             var stub = sinon.stub().returns(serviceInstance)
 
-            serviceContainer.set('app.foo_factory_function', stub)
-
-            var definition = new FunctionServiceFactoryDefinition(
-              new Reference('app.foo_factory_function'),
+            setupServiceContainer(
+              stub,
               [
                 new Reference('bar'),
                 new Parameter('foo')
               ]
             )
-
-            serviceContainer.setDefinition('app.foo', definition)
 
             return expect(serviceContainer.get('app.foo'))
               .to.eventually
@@ -214,9 +218,82 @@ describe('Container', function () {
         })
       })
 
-      context.skip('and is an instance of StaticMethodFactoryDefinition', function () {
+      context('and is an instance of StaticMethodFactoryDefinition', function () {
+        function setupServiceContainer(instantiateMethod, args) {
+          if (undefined === args) {
+            args = []
+          }
+
+          const Foo = function () {}
+
+          Foo.instantiate = instantiateMethod
+
+          //In a browser this could be the window object
+          const testExternalServiceContainer = {
+            Foo: Foo
+          }
+
+          serviceContainer.registerClassLocator(function (serviceIdentifier) {
+            return testExternalServiceContainer[serviceIdentifier]
+          })
+
+          var definition = new StaticMethodFactoryDefinition(
+            [ 'Foo', 'instantiate' ],
+            args
+          )
+
+          serviceContainer.setDefinition('app.foo', definition)
+        }
+
         it('should return the service instance', function () {
-          
+          const serviceInstance = {}
+
+          setupServiceContainer(() => serviceInstance)
+
+          return expect(serviceContainer.get('app.foo'))
+            .to.eventually
+            .be.fulfilled
+            .then(function (services) {
+              expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+              expect(services[0]).to.be.equal(serviceInstance)
+            })
+        })
+
+        context('and the definition has arguments', function () {
+          it('should pass these arguments to the factory method', function () {
+            var serviceInstance = {}
+            var barInstance = {}
+
+            serviceContainer.set('bar', barInstance)
+            serviceContainer.setParameter('foo', 'foo_value')
+
+            var stub = sinon.stub().returns(serviceInstance)
+
+            setupServiceContainer(
+              stub,
+              [
+                new Reference('bar'),
+                new Parameter('foo')
+              ]
+            )
+
+            return expect(serviceContainer.get('app.foo'))
+              .to.eventually
+              .be.fulfilled
+              .then(function (services) {
+                expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+                expect(services[0]).to.be.equal(serviceInstance)
+
+                assert(
+                  stub.calledOnce,
+                  'Failed asserting that factory method is called only once.'
+                )
+                assert(
+                  stub.calledWithExactly(barInstance, 'foo_value'),
+                  'Failed asserting that factory method is called with and only with given arguments.'
+                )
+              })
+          })
         })
       })
 
@@ -225,7 +302,7 @@ describe('Container', function () {
           //In a browser this could be the window object
           const testExternalServiceContainer = {}
 
-          serviceContainer.registerClassConstructorLocator(function (serviceIdentifier) {
+          serviceContainer.registerClassLocator(function (serviceIdentifier) {
             return testExternalServiceContainer[serviceIdentifier]
           })
 

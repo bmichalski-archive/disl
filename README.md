@@ -98,7 +98,7 @@ BarClass.prototype = {
   }
 }
 
-container.registerClassConstructorLocator(function (classConstructorIdentifier) {
+container.registerClassLocator(function (classConstructorIdentifier) {
   if ('barClass' === classConstructorIdentifier) {
     return BarClass
   }
