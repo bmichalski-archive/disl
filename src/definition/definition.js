@@ -1,6 +1,6 @@
-import MethodCall from './method-call'
+import MethodCall from '../method-call'
 
-import type {InjectableArguments} from './types/injectable-arguments'
+import type {InjectableArguments} from '../types/injectable-arguments'
 
 /**
  * @author Benjamin Michalski <benjamin.michalski@gmail.com>

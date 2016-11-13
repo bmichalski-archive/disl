@@ -1,6 +1,6 @@
 import Definition from './definition'
 
-import type {InjectableArguments} from './types/injectable-arguments'
+import type {InjectableArguments} from '../types/injectable-arguments'
 
 /**
  * @author Benjamin Michalski <benjamin.michalski@gmail.com>
