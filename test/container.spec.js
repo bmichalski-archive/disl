@@ -83,6 +83,23 @@ describe('Container', function () {
             })
         })
 
+        context('but its factory method does not exists', function () {
+          it('should throw a GetServiceError', function () {
+            serviceContainer.set('app.foo_factory', {})
+
+            serviceContainer.setDefinition(
+              'foo',
+              new ServiceMethodFactoryDefinition(
+                [ new Reference('app.foo_factory'), 'instantiate' ]
+              )
+            )
+
+            return expect(serviceContainer.get('foo'))
+              .to.eventually
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Factory method "instantiate" in factory service "app.foo_factory" does not exist$/)
+          })
+        })
+
         context('and its factory method returns nothing', function () {
           it('should throw a GetServiceError', function () {
             addFactoryAndDefinition('foo', () => undefined)

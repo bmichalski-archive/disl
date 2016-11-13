@@ -17,7 +17,8 @@ import {
   FactoryMethodReturnsNothingError,
   MethodDoesNotExistError,
   CannotLocateServiceClassConstructorError,
-  GetServiceError
+  GetServiceError,
+  FactoryMethodDoesNotExistError
 } from './errors'
 
 import type {Service} from './types/service'
@@ -295,9 +296,7 @@ class Container {
             return this._doGetService(factoryIdentifier, loading)
               .then((service: Service): Promise<Service> => {
                 if (undefined === service[factoryMethodName]) {
-                  //TODO Add specific error
-                  //TODO Test this error
-                  throw new Error('Missing ' + factoryMethodName + ' factory method for in factory service ' + factoryIdentifier)
+                  return Promise.reject(FactoryMethodDoesNotExistError.createError(factoryMethodName, factoryIdentifier))
                 }
 
                 const factoryMethod = service[factoryMethodName]
@@ -320,8 +319,6 @@ class Container {
                 return Promise.resolve(instance)
               })
           }
-
-          //TODO Implement support for other definition types
         }
 
         return doGetInstance()

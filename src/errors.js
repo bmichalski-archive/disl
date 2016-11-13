@@ -10,6 +10,7 @@ import UndefinedServiceDefinitionError from './errors/undefined-service-definiti
 import UnsupportedArgumentTypeError from './errors/unsupported-argument-type-error'
 import GetServiceError from './errors/get-service-error'
 import UnknownArgumentFormatError from './errors/unknown-argument-format-error'
+import FactoryMethodDoesNotExistError from './errors/factory-method-does-not-exist-error'
 
 export {
   CannotLocateServiceClassConstructorError,
@@ -23,7 +24,8 @@ export {
   UndefinedServiceDefinitionError,
   UnsupportedArgumentTypeError,
   GetServiceError,
-  UnknownArgumentFormatError
+  UnknownArgumentFormatError,
+  FactoryMethodDoesNotExistError
 }
 
 export default {
@@ -38,5 +40,6 @@ export default {
   UndefinedServiceDefinitionError,
   UnsupportedArgumentTypeError,
   GetServiceError,
-  UnknownArgumentFormatError
+  UnknownArgumentFormatError,
+  FactoryMethodDoesNotExistError
 }
