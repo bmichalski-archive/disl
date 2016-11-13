@@ -2,7 +2,7 @@
 Service retrieval is done via [promises](https://promisesaplus.com/).
 
 It allows to parallelize in cases such as:
-* when using a module loader such as [requirejs](https://github.com/requirejs/requirejs), in a web browser, to load multiple services at the same time
+* when using a module loader such as [requirejs](http://requirejs.org/), in a web browser, to load multiple services at the same time
 * when waiting for an I/O operation to finish, for example when connecting to a database
 
 # Motivations
