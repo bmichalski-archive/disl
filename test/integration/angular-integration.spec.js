@@ -1,5 +1,14 @@
 "use strict"
 
+if (typeof require !== 'undefined') {
+  var disl = require('../di')
+}
+
+var {
+  Container,
+  GetServiceError
+} = disl
+
 describe('Integration with angular', function () {
   beforeEach(function () {
     if (typeof window === 'undefined') {
@@ -74,7 +83,7 @@ describe('Integration with angular', function () {
     )
   )
 
-  it('should throw an UndefinedServiceDefinitionAndInstanceError if angular service does not exist', function () {
+  it('should throw a GetServiceError if angular service does not exist', function () {
     const container = new Container()
 
     const exposeAngularServicesModule = angular.module('exposeAngularServices', [])
@@ -100,7 +109,7 @@ describe('Integration with angular', function () {
 
   context('there is a circular dependency between angular services', function () {
     it(
-      'should be rejected with a CircularDependencyError',
+      'should be rejected with a GetServiceError',
       makeTest(
         function (fooModule, fooInstance, barInstance) {
           fooModule.service('foo', [ 'bar', function () {

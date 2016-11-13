@@ -4,14 +4,17 @@ if (typeof require !== 'undefined') {
   const origRequire = require
 
   var expect = origRequire('chai').expect
-  var {
-    Container,
-    GetServiceError
-  } = require('../di')
+
+  var disl = require('../di')
 
   var require = origRequire('requirejs')
   var define = require.define
 }
+
+var {
+  Container,
+  GetServiceError
+} = disl
 
 describe('Integration with requirejs', function () {
   beforeEach(function () {
