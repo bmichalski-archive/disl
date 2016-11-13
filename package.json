@@ -1,6 +1,16 @@
 {
   "name": "@bmichalski/disl",
   "description": "A dependency injector / service locator hybrid component with a promised-based service container",
+  "version": "0.3.0",
+  "license": "MIT",
+  "author": {
+    "name" : "Benjamin Michalski",
+    "email" : "benjamin.michalski@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bmichalski-js/disl.git"
+  },
   "keywords": [
     "dependency injection",
     "dependency injector",
@@ -21,12 +31,6 @@
     "inversion of control",
     "ioc"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/bmichalski-js/disl.git"
-  },
-  "version": "0.2.0",
-  "license": "MIT",
   "scripts": {
     "mocha": "./node_modules/.bin/mocha",
     "build-dev": "(export NODE_ENV=development; node ./node_modules/.bin/webpack)",
