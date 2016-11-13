@@ -1,12 +1,36 @@
 {
   "name": "@bmichalski/disl",
-  "description": "A dependency injector / service locator hybrid component",
+  "description": "A dependency injector / service locator hybrid component with a promised-based service container",
+  "version": "0.3.0",
+  "license": "MIT",
+  "author": {
+    "name" : "Benjamin Michalski",
+    "email" : "benjamin.michalski@gmail.com"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/bmichalski-js/disl.git"
   },
-  "version": "0.2.0",
-  "license": "MIT",
+  "keywords": [
+    "dependency injection",
+    "dependency injector",
+    "dependency",
+    "dependencies",
+    "injector",
+    "injection",
+    "di",
+    "service locator",
+    "service",
+    "locator",
+    "service container",
+    "service",
+    "container",
+    "promise",
+    "promise-based",
+    "promise based",
+    "inversion of control",
+    "ioc"
+  ],
   "scripts": {
     "mocha": "./node_modules/.bin/mocha",
     "build-dev": "(export NODE_ENV=development; node ./node_modules/.bin/webpack)",
@@ -19,6 +43,9 @@
     "karma-all": "npm run-script karma-dev && npm run-script karma-prod",
     "karma-dev-watch": "./node_modules/.bin/karma start karma.conf.dev.js",
     "test": "npm run-script mocha-all && npm run-script karma-all"
+  },
+  "dependencies": {
+    "verror": "^1.8.1"
   },
   "devDependencies": {
     "angular": "^1.5.8",

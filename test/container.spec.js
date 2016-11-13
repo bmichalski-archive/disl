@@ -6,14 +6,20 @@ if (typeof require !== 'undefined') {
   var expect = require('chai').expect
   var sinon = require('sinon')
 
-  var di = require('./di')
-
-  var FactoryDefinition = di.FactoryDefinition
-  var ClassConstructorDefinition = di.ClassConstructorDefinition
-  var Reference = di.Reference
-  var Parameter = di.Parameter
-  var MethodCall = di.MethodCall
-  var Container = di.Container
+  var {
+    FunctionServiceFactoryDefinition,
+    StaticMethodFactoryDefinition,
+    ServiceMethodFactoryDefinition,
+    ClassConstructorDefinition,
+    Reference,
+    Parameter,
+    MethodCall,
+    Container,
+    UndefinedServiceDefinitionError,
+    ServiceDefinitionAlreadyUsedError,
+    UndefinedParameterError,
+    GetServiceError
+  } = require('./di')
 }
 
 describe('Container', function () {
@@ -37,19 +43,36 @@ describe('Container', function () {
       })
   }
 
+  function addFactoryAndDefinition(serviceIdentifier, instantiate, args) {
+    if (undefined === args) {
+      args = []
+    }
+
+    const factoryIdentifier = 'app.' + serviceIdentifier + '_factory'
+
+    serviceContainer.set(
+      factoryIdentifier,
+      {
+        instantiate: instantiate
+      }
+    )
+
+    const serviceDefinition = new ServiceMethodFactoryDefinition([new Reference(factoryIdentifier), 'instantiate'], args)
+
+    serviceContainer.setDefinition(serviceIdentifier, serviceDefinition)
+
+    return serviceDefinition
+  }
+
   describe('#get', function () {
     it('should get the service associated with identifier', simpleGetSetTest)
 
     context('a service definition is set', function () {
-      context('and is an instance of FactoryDefinition', function () {
+      context('and is an instance of ServiceMethodFactoryDefinition', function () {
         it('should return the service instance', function () {
           const serviceInstance = {}
 
-          const serviceDefinition = new FactoryDefinition(function () {
-            return serviceInstance
-          })
-
-          serviceContainer.setDefinition('foo', serviceDefinition)
+          addFactoryAndDefinition('foo', () => serviceInstance)
 
           return expect(serviceContainer.get('foo'))
             .to.eventually
@@ -60,16 +83,30 @@ describe('Container', function () {
             })
         })
 
-        context('and its factory method returns nothing', function () {
-          it('should throw an Error', function () {
-            const definition = new FactoryDefinition(function () {})
+        context('but its factory method does not exists', function () {
+          it('should throw a GetServiceError', function () {
+            serviceContainer.set('app.foo_factory', {})
 
-            serviceContainer.setDefinition('foo', definition)
+            serviceContainer.setDefinition(
+              'foo',
+              new ServiceMethodFactoryDefinition(
+                [ new Reference('app.foo_factory'), 'instantiate' ]
+              )
+            )
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.an.instanceOf(Error)
-              .and.be.rejectedWith(/^Expecting factory method to return a service$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Factory method "instantiate" in factory service "app.foo_factory" does not exist$/)
+          })
+        })
+
+        context('and its factory method returns nothing', function () {
+          it('should throw a GetServiceError', function () {
+            addFactoryAndDefinition('foo', () => undefined)
+
+            return expect(serviceContainer.get('foo'))
+              .to.eventually
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Factory method for identifier "foo" returns nothing$/)
           })
         })
 
@@ -79,7 +116,7 @@ describe('Container', function () {
               it('should return the same object instance', function () {
                 const Foo = function () {}
 
-                serviceContainer.setDefinition('foo', new FactoryDefinition(function () { return new Foo() }))
+                addFactoryAndDefinition('foo', () => { return new Foo() })
 
                 return expect(serviceContainer.get('foo', 'foo'))
                   .to.eventually
@@ -98,7 +135,7 @@ describe('Container', function () {
               it('should return the same object instance', function () {
                 const Foo = function () {}
 
-                serviceContainer.setDefinition('foo', new FactoryDefinition(function () { return new Foo() }))
+                addFactoryAndDefinition('foo', () => { return new Foo() })
 
                 function expectServices(services) {
                   expect(services)
@@ -130,12 +167,159 @@ describe('Container', function () {
         })
       })
 
+      context('and is an instance of FunctionServiceFactoryDefinition', function () {
+        function setupServiceContainer(instantiateMethod, args) {
+          if (undefined === args) {
+            args = []
+          }
+
+          serviceContainer.set('app.foo_factory_function', instantiateMethod)
+
+          var definition = new FunctionServiceFactoryDefinition(
+            new Reference('app.foo_factory_function'), args
+          )
+
+          serviceContainer.setDefinition('app.foo', definition)
+        }
+
+        it('should return the service instance', function () {
+          var serviceInstance = {}
+
+          setupServiceContainer(() => serviceInstance)
+
+          return expect(serviceContainer.get('app.foo'))
+            .to.eventually
+            .be.fulfilled
+            .then(function (services) {
+              expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+              expect(services[0]).to.be.equal(serviceInstance)
+            })
+        })
+
+        context('and the definition has arguments', function () {
+          it('should pass these arguments to the factory method', function () {
+            var barInstance = {}
+
+            serviceContainer.set('bar', barInstance)
+            serviceContainer.setParameter('foo', 'foo_value')
+
+            var serviceInstance = {}
+
+            var stub = sinon.stub().returns(serviceInstance)
+
+            setupServiceContainer(
+              stub,
+              [
+                new Reference('bar'),
+                new Parameter('foo')
+              ]
+            )
+
+            return expect(serviceContainer.get('app.foo'))
+              .to.eventually
+              .be.fulfilled
+              .then(function (services) {
+                expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+                expect(services[0]).to.be.equal(serviceInstance)
+
+                assert(
+                  stub.calledOnce,
+                  'Failed asserting that factory method is called only once.'
+                )
+                assert(
+                  stub.calledWithExactly(barInstance, 'foo_value'),
+                  'Failed asserting that factory method is called with and only with given arguments.'
+                )
+              })
+          })
+        })
+      })
+
+      context('and is an instance of StaticMethodFactoryDefinition', function () {
+        function setupServiceContainer(instantiateMethod, args) {
+          if (undefined === args) {
+            args = []
+          }
+
+          const Foo = function () {}
+
+          Foo.instantiate = instantiateMethod
+
+          //In a browser this could be the window object
+          const testExternalServiceContainer = {
+            Foo: Foo
+          }
+
+          serviceContainer.registerClassLocator(function (serviceIdentifier) {
+            return testExternalServiceContainer[serviceIdentifier]
+          })
+
+          var definition = new StaticMethodFactoryDefinition(
+            [ 'Foo', 'instantiate' ],
+            args
+          )
+
+          serviceContainer.setDefinition('app.foo', definition)
+        }
+
+        it('should return the service instance', function () {
+          const serviceInstance = {}
+
+          setupServiceContainer(() => serviceInstance)
+
+          return expect(serviceContainer.get('app.foo'))
+            .to.eventually
+            .be.fulfilled
+            .then(function (services) {
+              expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+              expect(services[0]).to.be.equal(serviceInstance)
+            })
+        })
+
+        context('and the definition has arguments', function () {
+          it('should pass these arguments to the factory method', function () {
+            var serviceInstance = {}
+            var barInstance = {}
+
+            serviceContainer.set('bar', barInstance)
+            serviceContainer.setParameter('foo', 'foo_value')
+
+            var stub = sinon.stub().returns(serviceInstance)
+
+            setupServiceContainer(
+              stub,
+              [
+                new Reference('bar'),
+                new Parameter('foo')
+              ]
+            )
+
+            return expect(serviceContainer.get('app.foo'))
+              .to.eventually
+              .be.fulfilled
+              .then(function (services) {
+                expect(services).to.be.instanceOf(Array).and.to.be.lengthOf(1)
+                expect(services[0]).to.be.equal(serviceInstance)
+
+                assert(
+                  stub.calledOnce,
+                  'Failed asserting that factory method is called only once.'
+                )
+                assert(
+                  stub.calledWithExactly(barInstance, 'foo_value'),
+                  'Failed asserting that factory method is called with and only with given arguments.'
+                )
+              })
+          })
+        })
+      })
+
       context('and is an instance of ClassConstructorDefinition', function () {
         it('should return the service instance', function () {
           //In a browser this could be the window object
           const testExternalServiceContainer = {}
 
-          serviceContainer.registerClassConstructorLocator(function (serviceIdentifier) {
+          serviceContainer.registerClassLocator(function (serviceIdentifier) {
             return testExternalServiceContainer[serviceIdentifier]
           })
 
@@ -152,6 +336,28 @@ describe('Container', function () {
               .and.be.lengthOf(1)
             expect(services[0]).to.be.instanceOf(Foo)
           })
+        })
+
+        context('but no required class constructor is found', function () {
+          it('should be rejected with a GetServiceError', function () {
+            const serviceDefinition = new ClassConstructorDefinition('Foo')
+
+            serviceContainer.setDefinition('foo', serviceDefinition)
+
+            return expect(serviceContainer.get('foo'))
+              .to.eventually
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Cannot locate service class constructor for class "Foo"$/)
+          })
+        })
+      })
+
+      context('and its not an instance of a supported class', function () {
+        it('should be rejected with a GetServiceError', function () {
+          serviceContainer._serviceDefinitionsByIdentifier.foo = {}
+
+          return expect(serviceContainer.get('foo'))
+            .to.eventually
+            .be.rejectedWith(GetServiceError, /^Error getting service "foo": Function return value violates contract.\n\nExpected:\nDefinition\n\nGot:\nObject$/)
         })
       })
     })
@@ -173,14 +379,10 @@ describe('Container', function () {
           expect(quxParam).to.be.equal('qux_value')
         }
 
-        const serviceDefinition = new FactoryDefinition(
+        addFactoryAndDefinition(
+          'foo',
           function() {
-            return new Foo(
-              arguments[0],
-              arguments[1],
-              arguments[2],
-              arguments[3]
-            )
+            return new Foo(arguments[0], arguments[1], arguments[2], arguments[3])
           },
           [
             new Reference('bar'),
@@ -189,8 +391,6 @@ describe('Container', function () {
             new Parameter('qux')
           ]
         )
-
-        serviceContainer.setDefinition('foo', serviceDefinition)
 
         return expect(serviceContainer.get('foo'))
           .to.eventually
@@ -203,32 +403,26 @@ describe('Container', function () {
 
       context('and there is a circular dependency', function () {
         context('to the same service', function () {
-          it('should handle the situation by throwing an Error', function () {
+          it('should handle the situation by rejecting promise with a GetServiceError', function () {
             const fooServiceDefinition = new ClassConstructorDefinition('Foo', [ new Reference('foo') ])
 
             serviceContainer.setDefinition('foo', fooServiceDefinition)
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.instanceOf(Error)
-              .and.be.rejectedWith(/^Circular dependency found: foo <- foo$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Circular dependency found: foo <- foo$/)
           })
         })
 
         context('via another service', function () {
-          it('should handle the situation by throwing an Error', function () {
-            const fooServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('bar') ])
-            const barServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('qux') ])
-            const quxServiceDefinition = new FactoryDefinition(function () {}, [ new Reference('foo') ])
-
-            serviceContainer.setDefinition('foo', fooServiceDefinition)
-            serviceContainer.setDefinition('bar', barServiceDefinition)
-            serviceContainer.setDefinition('qux', quxServiceDefinition)
+          it('should handle the situation by rejecting promise with a GetServiceError', function () {
+            addFactoryAndDefinition('foo', () => undefined, [ new Reference('bar') ])
+            addFactoryAndDefinition('bar', () => undefined, [ new Reference('qux') ])
+            addFactoryAndDefinition('qux', () => undefined, [ new Reference('foo') ])
 
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.instanceOf(Error)
-              .and.be.rejectedWith(/^Circular dependency found: foo <- qux <- bar <- foo$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Circular dependency found: foo <- qux <- bar <- foo$/)
           })
         })
       })
@@ -244,16 +438,17 @@ describe('Container', function () {
         const spy = sinon.spy()
         const spy2 = sinon.spy()
 
-        const definition = new FactoryDefinition(function () {
-          return { spy: spy, spy2: spy2 }
-        })
+        const definition = addFactoryAndDefinition(
+          'foo',
+          () => {
+            return { spy: spy, spy2: spy2 }
+          }
+        )
 
         definition.methodCalls = [
           new MethodCall('spy'),
           new MethodCall('spy2', [ new Reference('bar'), new Parameter('qux') ])
         ]
-
-        serviceContainer.setDefinition('foo', definition)
 
         return serviceContainer.get('foo').then(function () {
           assert(spy.calledOnce)
@@ -265,59 +460,67 @@ describe('Container', function () {
       })
 
       context('but the called methods do not exist', function () {
-        it('should throw an Error', function () {
-          const definition = new FactoryDefinition(function () { return {} })
-
+        it('should be rejected with a GetServiceError', function () {
           const spy = sinon.spy()
+
+          const definition = addFactoryAndDefinition('foo', () => { return {} })
 
           definition.methodCalls = [
             new MethodCall('spy')
           ]
 
-          serviceContainer.setDefinition('foo', definition)
-
           return expect(serviceContainer.get('foo'))
             .to.eventually
-            .be.instanceOf(Error)
-            .and.be.rejectedWith(/^Method "spy" does not exist$/)
+            .be.rejectedWith(GetServiceError, /^Error getting service "foo": Method "spy" does not exist$/)
         })
       })
 
       context('and there is a circular dependency', function () {
         context('to same service', function () {
-          it('should handle the situation by throwing an Error', function () {
-            const definition = new FactoryDefinition(function () { return { meth: function () {} } })
+          it('should handle the situation by rejecting promise with a GetServiceError', function () {
+            const definition = addFactoryAndDefinition(
+              'foo',
+              () => {
+                return {
+                  meth: function () {}
+                }
+              }
+            )
 
             definition.methodCalls = [
               new MethodCall('meth', [ new Reference('foo') ])
             ]
 
-            serviceContainer.setDefinition('foo', definition)
-
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.instanceOf(Error)
-              .and.be.rejectedWith(/^Circular dependency found: foo <- foo$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Circular dependency found: foo <- foo$/)
           })
         })
 
         context('via another service', function () {
-          it('should handle circular dependency by throwing an Error', function () {
-            const barDefinition = new FactoryDefinition(function () { return { meth: function () {} } })
+          it('should handle circular dependency by rejecting promise with a GetServiceError', function () {
+            addFactoryAndDefinition(
+              'foo',
+              () => undefined,
+              [ new Reference('bar') ]
+            )
 
-            const fooDefinition = new FactoryDefinition(function () { return {} }, [ new Reference('bar') ])
+            const barDefinition = addFactoryAndDefinition(
+              'bar',
+              () => {
+                return {
+                  meth: function () {}
+                }
+              }
+            )
 
             barDefinition.methodCalls = [
               new MethodCall('meth', [ new Reference('foo') ])
             ]
 
-            serviceContainer.setDefinition('foo', fooDefinition)
-            serviceContainer.setDefinition('bar', barDefinition)
-
             return expect(serviceContainer.get('foo'))
               .to.eventually
-              .be.instanceOf(Error)
-              .and.be.rejectedWith(/^Circular dependency found: foo <- bar <- foo$/)
+              .be.rejectedWith(GetServiceError, /^Error getting service "foo": Circular dependency found: foo <- bar <- foo$/)
           })
         })
       })
@@ -347,8 +550,8 @@ describe('Container', function () {
         const fooInstance = {}
         const barInstance = {}
 
-        serviceContainer.setDefinition('foo', new FactoryDefinition(function () { return fooInstance }))
-        serviceContainer.setDefinition('bar', new FactoryDefinition(function () { return barInstance }))
+        addFactoryAndDefinition('foo', () => fooInstance)
+        addFactoryAndDefinition('bar', () => barInstance)
 
         return expect(serviceContainer.get('foo', 'bar'))
           .to.eventually
@@ -361,11 +564,10 @@ describe('Container', function () {
     })
 
     context('there is no service definition and no service instance defined for given service name', function () {
-      it('should throw an Error', function () {
+      it('should be rejected with a GetServiceError', function () {
         return expect(serviceContainer.get('foo'))
           .to.eventually
-          .be.instanceOf(Error)
-          .and.be.rejectedWith(/^Missing service definition and instance for identifier "foo"$/)
+          .be.rejectedWith(GetServiceError, /^Error getting service "foo": Undefined service definition and instance for identifier "foo"$/)
       })
 
       context('but there is an instance locator returning something', function () {
@@ -389,7 +591,7 @@ describe('Container', function () {
       })
 
       context('and even the instance locator does not return a service', function () {
-        it('should return a service instance', function () {
+        it('should be rejected with a GetServiceError', function () {
           const fooInstance = {}
 
           serviceContainer.registerInstanceLocator(function (identifier) {
@@ -400,8 +602,7 @@ describe('Container', function () {
 
           return expect(serviceContainer.get('bar'))
             .to.eventually
-            .be.instanceOf(Error)
-            .and.be.rejectedWith(/^Missing service definition and instance for identifier "bar"$/)
+            .be.rejectedWith(GetServiceError, /^Error getting service "bar": Undefined service definition and instance for identifier "bar"$/)
         })
       })
     })
@@ -437,15 +638,19 @@ describe('Container', function () {
   })
 
   function simpleGetDefinitionSetDefinitionTest() {
-    const serviceDefinition = new FactoryDefinition(function () {})
-
-    serviceContainer.setDefinition('foo', serviceDefinition)
+    const serviceDefinition = addFactoryAndDefinition('foo')
 
     expect(serviceContainer.getDefinition('foo')).to.be.equal(serviceDefinition)
   }
 
   describe('#getDefinition', function () {
     it('should get the service definition associated with identifier', simpleGetDefinitionSetDefinitionTest)
+
+    it('should throw an UndefinedServiceDefinitionError if service definition is not set', function () {
+      expect(function () {
+        serviceContainer.getDefinition('foo')
+      }).to.throw(UndefinedServiceDefinitionError, /Undefined service definition for identifier "foo"/)
+    })
   })
 
   describe('#setDefinition', function () {
@@ -453,17 +658,13 @@ describe('Container', function () {
 
     context('the service definition has already been set', function () {
       context('the service definition has already been used to instantiate a service', function () {
-        it('should throw an Error', function () {
-          const serviceDefinition = new FactoryDefinition(function () {
-            return {}
-          })
-
-          serviceContainer.setDefinition('foo', serviceDefinition)
+        it('should throw a ServiceDefinitionAlreadyUsedError', function () {
+          const serviceDefinition = addFactoryAndDefinition('foo', () => { return {} })
 
           return serviceContainer.get('foo').then(function () {
             expect(function () {
               serviceContainer.setDefinition('foo', serviceDefinition)
-            }).to.throw(Error, /^Service definition for "foo" has already been used to instantiate a service, refusing to modify it$/)
+            }).to.throw(ServiceDefinitionAlreadyUsedError, /^Service definition for "foo" has already been used to instantiate a service, refusing to modify it$/)
           })
         })
       })
@@ -479,10 +680,10 @@ describe('Container', function () {
   describe('#getParameter', function () {
     it('should get parameter with identifier', simpleGetSetParameterTest)
 
-    it('should throw an error if parameter does not exist', function () {
+    it('should throw an UndefinedParameterError if parameter does not exist', function () {
       expect(function () {
         serviceContainer.getParameter('foo')
-      }).to.throw(Error, /^Undefined parameter "foo"$/)
+      }).to.throw(UndefinedParameterError, /^Undefined parameter for identifier "foo"$/)
     })
   })
 
@@ -523,11 +724,9 @@ describe('Container', function () {
       })
     })
 
-    context('the service has no definition', function () {
+    context('the service has a definition', function () {
       it('should return true', function () {
-        const definition = new FactoryDefinition(function () {})
-
-        serviceContainer.setDefinition('foo', definition)
+        addFactoryAndDefinition('foo')
 
         expect(serviceContainer.hasDefinition('foo')).to.be.equal(true)
       })
@@ -567,7 +766,7 @@ describe('Container', function () {
 
     context('the service has no instance but a definition', function () {
       it('should return false', function () {
-        serviceContainer.setDefinition('foo', new FactoryDefinition(function() {}))
+        addFactoryAndDefinition('foo')
 
         expect(serviceContainer.has('foo')).to.be.equal(true)
       })

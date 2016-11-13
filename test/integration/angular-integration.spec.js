@@ -74,7 +74,7 @@ describe('Integration with angular', function () {
     )
   )
 
-  it('should throw an error if angular service does not exist', function () {
+  it('should throw an UndefinedServiceDefinitionAndInstanceError if angular service does not exist', function () {
     const container = new Container()
 
     const exposeAngularServicesModule = angular.module('exposeAngularServices', [])
@@ -95,13 +95,12 @@ describe('Integration with angular', function () {
 
     return expect(container.get('unknown_service'))
       .to.eventually
-      .be.instanceOf(Error)
-      .and.be.rejectedWith(/^Missing service definition and instance for identifier "unknown_service"$/)
+      .be.rejectedWith(GetServiceError, /^Error getting service "unknown_service": Undefined service definition and instance for identifier "unknown_service"$/)
   })
 
   context('there is a circular dependency between angular services', function () {
     it(
-      'should throw an Error',
+      'should be rejected with a CircularDependencyError',
       makeTest(
         function (fooModule, fooInstance, barInstance) {
           fooModule.service('foo', [ 'bar', function () {
@@ -115,8 +114,7 @@ describe('Integration with angular', function () {
         function (container) {
           return expect(container.get('foo'))
             .to.eventually
-            .be.instanceOf(Error)
-            .and.to.be.rejectedWith('Circular dependency found: foo <- bar <- foo')
+            .be.rejectedWith(GetServiceError, /^Error getting service "foo":.*?Circular dependency found: foo <- bar <- foo.*?/)
         }
       )
     )
