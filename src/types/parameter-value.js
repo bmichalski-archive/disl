@@ -1,1 +1,1 @@
-export type ParameterValue = (string|number|boolean|null)
+export type ParameterValue = any
