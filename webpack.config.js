@@ -16,7 +16,7 @@ if ('production' === env) {
 
 module.exports = {
   devtool: devtool,
-  entry: './index.js',
+  entry: './src/index.js',
   output: {
     path: './built',
     filename: filename,
